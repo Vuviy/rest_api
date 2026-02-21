@@ -12,6 +12,7 @@ final class QueryBuilder
     private array $bindings = [];
     private ?string $orderBy = null;
     private ?int $limit = null;
+    private ?int $offset = null;
     private array $joins = [];
     private array $groups = [];
     private array $havings = [];
@@ -48,6 +49,12 @@ final class QueryBuilder
         return $this;
     }
 
+    public function offset(int $offset): self
+    {
+        $this->offset = max(0, $offset);
+        return $this;
+    }
+
     public function get(array $columns = ['*']): array
     {
         $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->table}";
@@ -75,6 +82,10 @@ final class QueryBuilder
             $sql .= " LIMIT {$this->limit}";
         }
 
+        if ($this->offset !== null) {
+            $sql .= " OFFSET " . (int)$this->offset;
+        }
+
         return $this->db->select($sql, $this->bindings);
     }
 
@@ -91,6 +102,7 @@ final class QueryBuilder
         $placeholders = array_map(fn($col) => ':' . $col, $columns);
 
         $sql = "INSERT INTO {$this->table} (" . implode(',', $columns) . ") VALUES (" . implode(',', $placeholders) . ")";
+
         $bindings = [];
         foreach ($data as $col => $val) {
             $bindings[':' . $col] = $val;

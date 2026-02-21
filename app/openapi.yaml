@@ -1,0 +1,256 @@
+openapi: 3.0.3
+info:
+  title: Books API
+  version: 1.0.0
+  description: REST API for managing books (v1)
+
+servers:
+  - url: http://localhost
+
+paths:
+  /api/v1/books:
+    get:
+      summary: List books
+      description: Returns paginated list of books
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [id, title, author, description, created_at]
+        - in: query
+          name: orderBy
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - in: query
+          name: author
+          schema:
+            type: string
+        - in: query
+          name: title
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated list
+          headers:
+            Link:
+              description: RFC5988 pagination links
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    post:
+      summary: Create book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: URL of created resource
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/books/{id}:
+    get:
+      summary: Get book by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Book found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Replace book
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    patch:
+      summary: Partially update book
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      summary: Delete book
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    Book:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+        links:
+          type: object
+          properties:
+            self:
+              type: string
+            update:
+              type: string
+            delete:
+              type: string
+            author:
+              type: string
+      required: [id, title, author, description]
+
+    BookCreate:
+      type: object
+      required: [title, author, description]
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+
+    BookPatch:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        description:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
