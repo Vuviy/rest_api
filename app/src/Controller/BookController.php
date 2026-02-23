@@ -26,8 +26,8 @@ final class BookController
         $this->listValidator->validate($request->get());
 
         $dto = new ListBooksDTO(
-            page: isset($data['page']) ? (int)$data['page'] : 1,
-            perPage: isset($data['per_page']) ? (int)$data['per_page'] : 10,
+            page: array_key_exists('page', $data) ? (int)$data['page'] : 1,
+            perPage: array_key_exists('per_page', $data) ? (int)$data['per_page'] : 10,
             sort: $data['sort'] ?? null,
             orderBy: $data['orderBy'] ?? 'asc',
             author: $data['author'] ?? null,

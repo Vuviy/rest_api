@@ -13,34 +13,6 @@ final class BookRepository
     {
     }
 
-//    public function getAll(
-//        array $filters,
-//        ?string $sort,
-//        string $direction,
-//        int $limit,
-//        int $offset
-//    ): array
-//    {
-//        if (0 === count($filters)) {
-//            $booksArr = $this->db->table('books')->get();
-//        } else {
-//            $booksArr = $this->db->table('books');
-//            foreach ($filters as $field => $value) {
-//                if (in_array($field, $this->columns)) {
-//                    $booksArr->where($field, '=', $value);
-//                }
-//            }
-//            $booksArr = $booksArr->get();
-//        }
-//
-//        $books = [];
-//        foreach ($booksArr as $book) {
-//            $books[] = new Book($book['id'], $book['title'], $book['author'], $book['description']);
-//        }
-//
-//        return $books;
-//    }
-
     public function getAll(
         array $filters,
         ?string $sort,

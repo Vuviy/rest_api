@@ -14,11 +14,6 @@ final class BookService
     {
     }
 
-//    public function getAll(array $filters = []): array
-//    {
-//        return $this->repository->getAll($filters);
-//    }
-
     public function list(ListBooksDTO $dto): array
     {
         $offset = ($dto->page - 1) * $dto->perPage;

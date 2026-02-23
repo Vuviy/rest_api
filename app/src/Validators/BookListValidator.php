@@ -14,19 +14,19 @@ class BookListValidator
     {
         $errors = [];
 
-        if (isset($query['page']) && (int)$query['page'] < 1) {
+        if (array_key_exists('page', $query) && (int)$query['page'] < 1) {
             $errors['page'] = 'Page must be >= 1';
         }
 
-        if (isset($query['perPage']) && ((int)$query['perPage'] < 1 || (int)$query['perPage'] > 100)) {
+        if (array_key_exists('per_page', $query) && ((int)$query['per_page'] < 1 || (int)$query['per_page'] > 100)) {
             $errors['perPage'] = 'per_page must be between 1 and 100';
         }
 
-        if (isset($query['sort']) && !in_array($query['sort'], $this->allowedSorts, true)) {
+        if (array_key_exists('sort', $query) && !in_array($query['sort'], $this->allowedSorts, true)) {
             $errors['sort'] = 'Invalid sort field';
         }
 
-        if (isset($query['orderBy']) && !in_array(strtolower($query['orderBy']), ['asc', 'desc'], true)) {
+        if (array_key_exists('orderBy', $query) && !in_array(strtolower($query['orderBy']), ['asc', 'desc'], true)) {
             $errors['orderBy'] = 'Direction must be asc or desc';
         }
 
