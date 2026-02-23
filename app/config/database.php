@@ -12,10 +12,10 @@ return [
 
         'mysql' => [
             'driver' => 'mysql',
-            'host' => 'db_rest_api',
-            'dbname' => 'db_rest_api',
-            'user' => 'root',
-            'password' => 'root',
+            'host' => $_ENV['DB_HOST'],
+            'dbname' => $_ENV['DB_NAME'],
+            'user' => $_ENV['DB_USER'],
+            'password' => $_ENV['DB_PASS'],
         ],
 
         'pgsql' => [

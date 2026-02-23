@@ -10,6 +10,9 @@ use App\Service\BookService;
 use App\Validators\BookListValidator;
 use App\Validators\BookValidator;
 
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 $container = new Container();
 
 $container->bind(Database::class, fn() =>
