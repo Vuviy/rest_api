@@ -3,15 +3,44 @@
 namespace App;
 
 use App\Exception\HttpException;
+use Exception;
 
 final class Request
 {
+    private array $headers;
+
+    private array $attributes = [];
+
+    public function __construct()
+    {
+        $this->headers = getallheaders() ?: [];
+    }
+
+    public function getHeader(string $name): ?string
+    {
+        $normalized = strtolower($name);
+
+        foreach ($this->headers as $key => $value) {
+            if (strtolower($key) === $normalized) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    public function setAttribute(string $key, mixed $value): void
+    {
+        $this->attributes[$key] = $value;
+    }
+
+    public function getAttribute(string $key): mixed
+    {
+        return $this->attributes[$key] ?? null;
+    }
     public function post(string $key = null): mixed
     {
-        if (null === $key) {
-            return $_POST;
-        }
-        return $_POST[$key] ?? null;
+        return $this->getParsedBody($key);
     }
 
     public function get(string $key = null): mixed
@@ -22,34 +51,18 @@ final class Request
         return $_GET[$key] ?? null;
     }
 
-    public function put(string $key = null): mixed
+    private function getParsedBody(string $key = null): mixed
     {
-        return $this->getParsedBody($key, 'PUT');
-    }
-
-    public function patch(string $key = null): mixed
-    {
-        return $this->getParsedBody($key, 'PATCH');
-    }
-
-    public function delete(string $key = null): mixed
-    {
-        return $this->getParsedBody($key, 'DELETE');
-    }
-
-    private function getParsedBody(?string $key, string $method): mixed
-    {
-        if ($_SERVER['REQUEST_METHOD'] !== $method) {
-            return null;
-        }
-
         $input = file_get_contents('php://input');
-
         $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
         $data = [];
         if (str_contains($contentType, 'application/json')) {
-            $data = json_decode($input, true) ?? [];
+            try {
+                $data = json_decode($input, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                throw new Exception('Invalid JSON', 400);
+            }
         } elseif (str_contains($contentType, 'application/x-www-form-urlencoded')) {
             parse_str($input, $data);
         }
@@ -73,12 +86,6 @@ final class Request
 
     public function getJson(): array
     {
-        $raw = file_get_contents('php://input');
-
-        try {
-            return json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            throw new HttpException('Invalid JSON', 400);
-        }
+        return $this->getParsedBody();
     }
 }

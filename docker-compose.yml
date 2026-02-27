@@ -5,6 +5,7 @@ services:
     build: './docker/php'
     volumes:
       - './app:/var/www/html'
+      - './app/.env:/var/www/html/.env'
   nginx:
     image: nginx:1.27.2
     ports:

@@ -5,13 +5,21 @@ declare(strict_types=1);
 
 /** @var \App\Router $router */
 
+
 use App\Controller\BookController;
+use App\Controller\Security\AuthController;
+use App\Security\Middleware\JwtMiddleware;
 
 
+$router->get('/api/v1/books', [BookController::class, 'list'], [JwtMiddleware::class]);
+$router->get('/api/v1/books/{id}', [BookController::class, 'getById'], [JwtMiddleware::class]);
+$router->post('/api/v1/books', [BookController::class, 'store'], [JwtMiddleware::class]);
+$router->put('/api/v1/books/{id}', [BookController::class, 'update'], [JwtMiddleware::class]);
+$router->patch('/api/v1/books/{id}', [BookController::class, 'patch'], [JwtMiddleware::class]);
+$router->delete('/api/v1/books/{id}', [BookController::class, 'destroy'], [JwtMiddleware::class]);
 
-$router->get('/api/v1/books', [BookController::class, 'index']);
-$router->get('/api/v1/books/{id}', [BookController::class, 'getById']);
-$router->post('/api/v1/books', [BookController::class, 'store']);
-$router->put('/api/v1/books/{id}', [BookController::class, 'update']);
-$router->patch('/api/v1/books/{id}', [BookController::class, 'patch']);
-$router->delete('/api/v1/books/{id}', [BookController::class, 'destroy']);
+
+//security
+$router->post('/api/v1/auth', [AuthController::class, 'auth']);
+$router->post('/api/v1/refresh', [AuthController::class, 'refresh']);
+//security

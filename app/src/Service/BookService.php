@@ -3,8 +3,12 @@
 namespace App\Service;
 
 use App\DTO\Book;
+use App\DTO\BookCreateDTO;
+use App\DTO\BookPatchDTO;
+use App\DTO\BookUpdateDTO;
 use App\DTO\ListBooksDTO;
 use App\Exception\HttpException;
+use App\Exception\NotFoundException;
 use App\Repositories\BookRepository;
 use Exception;
 
@@ -15,6 +19,46 @@ final class BookService
     }
 
     public function list(ListBooksDTO $dto): array
+    {
+        if ($dto->cursor !== null) {
+            return $this->listWithCursor($dto);
+        }
+
+        return $this->listWithOffset($dto);
+    }
+
+    private function listWithCursor(ListBooksDTO $dto): array
+    {
+
+        $books = $this->repository->getAllWithCursor(
+            filters: [
+                'author' => $dto->author,
+                'title' => $dto->title
+            ],
+            sort: $dto->sort ?? 'id',
+            orderBy: $dto->orderBy ?? 'asc',
+            limit: $dto->perPage,
+            cursor: $dto->cursor
+        );
+
+        $total = $this->repository->count([
+            'author' => $dto->author,
+            'title' => $dto->title
+        ]);
+
+        $links = $this->buildPaginationLinks($dto, $total, (array)$dto);
+
+
+        return [
+            'data' => $books,
+            'headers' => [
+                'link' => $links
+            ]
+        ];
+    }
+
+
+    public function listWithOffset(ListBooksDTO $dto): array
     {
         $offset = ($dto->page - 1) * $dto->perPage;
 
@@ -34,12 +78,12 @@ final class BookService
             'title' => $dto->title
         ]);
 
-        $links = $this->buildPaginationLinks($dto, $total, (array) $dto);
+        $links = $this->buildPaginationLinks($dto, $total, (array)$dto);
 
         return [
             'data' => $books,
             'headers' => [
-                'Link' => $links
+                'link' => $links
             ]
         ];
     }
@@ -48,10 +92,9 @@ final class BookService
     private function buildPaginationLinks(ListBooksDTO $dto, int $total, array $queryParams): string
     {
         $links = [];
-        $totalPages = (int) ceil($total / $dto->perPage);
+        $totalPages = (int)ceil($total / $dto->perPage);
 
         $baseParams = $queryParams;
-        unset($baseParams['page']);
 
         $buildUrl = function (int $page) use ($baseParams) {
             $params = array_merge($baseParams, ['page' => $page]);
@@ -81,42 +124,41 @@ final class BookService
 
     public function getById(string $id): array
     {
-        $book =  $this->repository->getById($id);
+        $book = $this->repository->getById($id);
 
         if (!$book) {
-            throw new HttpException('Book not found', 404);
+            throw new NotFoundException(sprintf('Book with id %s not found', $id));
         }
 
         return $book;
     }
 
-    public function create(array $data): int
+    public function create(BookCreateDTO $dto): int
     {
         $book = new Book(
             id: null,
-            title: $data['title'],
-            author: $data['author'],
-            description: $data['description']
+            title: $dto->title,
+            author: $dto->author,
+            description: $dto->description
         );
-
         return $this->repository->save($book);
     }
 
-    public function replace(string $id, array $data): int
+    public function replace(BookUpdateDTO $dto, string $id): int
     {
         $book = new Book(
             id: (int)$id,
-            title: $data['title'],
-            author: $data['author'],
-            description: $data['description']
+            title: $dto->title,
+            author: $dto->author,
+            description: $dto->description
         );
 
         return $this->repository->update($book);
     }
 
-    public function updateFields(string $id, array $data): int
+    public function updateFields(string $id, BookPatchDTO $dto): int
     {
-        return $this->repository->updatePartial($id, $data);
+        return $this->repository->updatePartial($id, $dto->toArray());
     }
 
     public function delete(string $id): void

@@ -5,30 +5,23 @@ declare(strict_types=1);
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/bootstrap.php';
 
-use App\Response;
+use App\Controller\Security\AuthController;
+use App\Exception\ExceptionHandler;
 use App\Router;
-use App\Exception\HttpException;
+use App\Security\Repositories\BlacklistRepository;
+use App\Security\Services\JwtService;
+use App\Security\Services\TokenService;
+use App\Security\TokenFactory;
 
-$router = new Router($container);
+$router = new Router($containerRoot);
 
 require __DIR__ . '/routes/api.php';
 
-
 try {
     $response = $router->dispatch();
-} catch (HttpException $e) {
-    $response = new Response(
-        array_merge(
-            ['error' => $e->getMessage()],
-            $e->getPayload()
-        ),
-        $e->getStatus()
-    );
 } catch (\Throwable $e) {
-    $response = new Response(
-        ['error' => $e->getMessage(), 'line' => $e->getLine(), 'file' => $e->getFile()],
-        500
-    );
+    $exeptionHandler = $containerRoot->get(ExceptionHandler::class);
+    $response = $exeptionHandler->handle($e);
 }
 
 $response->send();

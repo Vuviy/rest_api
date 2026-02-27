@@ -3,6 +3,7 @@
 namespace App\Database;
 
 use Exception;
+use RuntimeException;
 
 final class QueryBuilder
 {
@@ -16,6 +17,9 @@ final class QueryBuilder
     private array $joins = [];
     private array $groups = [];
     private array $havings = [];
+    private ?string $cursorColumn = null;
+    private mixed $cursorValue = null;
+    private string $cursorDirection = 'ASC';
 
     public function __construct(Database $db, string $table)
     {
@@ -55,11 +59,69 @@ final class QueryBuilder
         return $this;
     }
 
+    public function cursor(string $column, mixed $value, string $direction = 'ASC'): self
+    {
+        $this->cursorColumn = $column;
+        $this->cursorValue = $value;
+        $this->cursorDirection = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+
+        return $this;
+    }
+
+//    public function get(array $columns = ['*']): array
+//    {
+//        $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->table}";
+//        if ($this->joins) {
+//            $sql .= ' ' . implode(' ', $this->joins);
+//        }
+//
+//        if ($this->wheres) {
+//            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+//        }
+//
+//        if ($this->groups) {
+//            $sql .= " GROUP BY " . implode(', ', $this->groups);
+//        }
+//
+//        if ($this->havings) {
+//            $sql .= " HAVING " . implode(' AND ', $this->havings);
+//        }
+//
+//        if ($this->orderBy) {
+//            $sql .= " ORDER BY {$this->orderBy}";
+//        }
+//
+//        if ($this->limit !== null) {
+//            $sql .= " LIMIT {$this->limit}";
+//        }
+//
+//        if ($this->offset !== null) {
+//            $sql .= " OFFSET " . (int)$this->offset;
+//        }
+//
+//        return $this->db->select($sql, $this->bindings);
+//    }
+
+
     public function get(array $columns = ['*']): array
     {
+        if ($this->cursorColumn !== null && $this->offset !== null) {
+            throw new RuntimeException('Cannot use offset with cursor pagination');
+        }
+
         $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->table}";
+
         if ($this->joins) {
             $sql .= ' ' . implode(' ', $this->joins);
+        }
+
+        if ($this->cursorColumn !== null) {
+            $operator = $this->cursorDirection === 'ASC' ? '>' : '<';
+
+            $this->wheres[] = "{$this->cursorColumn} {$operator} ?";
+            $this->bindings[] = $this->cursorValue;
+
+            $this->orderBy = "{$this->cursorColumn} {$this->cursorDirection}";
         }
 
         if ($this->wheres) {
@@ -83,7 +145,7 @@ final class QueryBuilder
         }
 
         if ($this->offset !== null) {
-            $sql .= " OFFSET " . (int)$this->offset;
+            $sql .= " OFFSET {$this->offset}";
         }
 
         return $this->db->select($sql, $this->bindings);

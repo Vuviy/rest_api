@@ -2,6 +2,8 @@
 
 namespace App;
 
+use App\Enums\HttpStatus;
+
 final class Router
 {
     private array $routes = [];
@@ -10,24 +12,25 @@ final class Router
     {
     }
 
-
-    public function get(string $uri, array $action): void
+    public function get(string $uri, array $action, array $middlewares = []): void
     {
         $this->routes['GET'][] = [
             'uri' => $uri,
-            'action' => $action
+            'action' => $action,
+            'middlewares' => $middlewares,
         ];
     }
 
-    public function post(string $uri, array $action): void
+    public function post(string $uri, array $action, array $middlewares = []): void
     {
         $this->routes['POST'][] = [
             'uri' => $uri,
-            'action' => $action
+            'action' => $action,
+            'middlewares' => $middlewares,
         ];
     }
 
-    public function put(string $uri, array $action): void
+    public function put(string $uri, array $action, array $middlewares = []): void
     {
         $this->routes['PUT'][] = [
             'uri' => $uri,
@@ -35,19 +38,21 @@ final class Router
         ];
     }
 
-    public function patch(string $uri, array $action): void
+    public function patch(string $uri, array $action, array $middlewares = []): void
     {
         $this->routes['PATCH'][] = [
             'uri' => $uri,
-            'action' => $action
+            'action' => $action,
+            'middlewares' => $middlewares,
         ];
     }
 
-    public function delete(string $uri, array $action): void
+    public function delete(string $uri, array $action, array $middlewares = []): void
     {
         $this->routes['DELETE'][] = [
             'uri' => $uri,
-            'action' => $action
+            'action' => $action,
+            'middlewares' => $middlewares,
         ];
     }
 
@@ -57,7 +62,7 @@ final class Router
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
         if (!isset($this->routes[$method])) {
-            return new Response('404 Not Found', 404);
+            return new Response('404 Not Found', HttpStatus::NOT_FOUND);
         }
 
         foreach ($this->routes[$method] as $route) {
@@ -67,17 +72,38 @@ final class Router
                 array_shift($matches);
 
                 [$controller, $methodName] = $route['action'];
+                $middlewares = $route['middlewares'] ?? [];
 
-                $controllerInstance = $this->container->get($controller);
+                $request = new Request();
 
-                return $controllerInstance->$methodName(
-                    new Request(),
-                    ...$matches
+                $coreHandler = function (Request $request) use ($controller, $methodName, $matches) {
+                    $controllerInstance = $this->container->get($controller);
+                    return $controllerInstance->$methodName($request, ...$matches);
+                };
+
+                $pipeline = $this->buildMiddlewarePipeline(
+                    $middlewares,
+                    $coreHandler
                 );
+                return $pipeline($request);
             }
         }
 
-        return new Response('404 Not Found', 404);
+        return new Response('404 Not Found', HttpStatus::NOT_FOUND);
+    }
+
+    private function buildMiddlewarePipeline(array $middlewares, callable $coreHandler): callable
+    {
+        return array_reduce(
+            array_reverse($middlewares),
+            function ($next, $middlewareClass) {
+                return function (Request $request) use ($middlewareClass, $next) {
+                    $middleware = $this->container->get($middlewareClass);
+                    return $middleware->handle($request, $next);
+                };
+            },
+            $coreHandler
+        );
     }
 
     private function convertToRegex(string $uri): string

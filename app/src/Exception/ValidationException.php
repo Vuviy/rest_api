@@ -2,14 +2,17 @@
 
 namespace App\Exception;
 
-class ValidationException extends HttpException
+use Exception;
+
+class ValidationException extends Exception
 {
-    public function __construct(array $errors)
+    public function __construct(private array $errors)
     {
-        parent::__construct(
-            'Validation failed',
-            422,
-            ['details' => $errors]
-        );
+        parent::__construct('Validation failed');
+    }
+
+    public function getPayload(): array
+    {
+        return $this->errors;
     }
 }
