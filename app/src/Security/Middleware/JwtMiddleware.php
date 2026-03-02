@@ -11,7 +11,7 @@ use App\Security\Repositories\BlacklistRepository;
 use App\Security\Services\JwtService;
 use Exception;
 
-final class JwtMiddleware
+final class JwtMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private JwtService $jwt,

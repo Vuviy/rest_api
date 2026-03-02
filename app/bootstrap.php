@@ -7,8 +7,10 @@ use App\Controller\BookController;
 use App\Controller\Security\AuthController;
 use App\Database\Database;
 use App\Exception\ExceptionHandler;
+use App\MiddlewareDispatcher;
 use App\Repositories\BookRepository;
 use App\Security\Middleware\JwtMiddleware;
+use App\Security\Middleware\TestMiddleware;
 use App\Security\Repositories\BlacklistRepository;
 use App\Security\Repositories\ClientsApiRepository;
 use App\Security\Services\JwtService;
@@ -71,6 +73,9 @@ $containerRoot->bind(JwtMiddleware::class, fn($container) => new JwtMiddleware(
     $container->get(JwtService::class),
     $container->get(BlacklistRepository::class),
 ));
+
+$containerRoot->bind(MiddlewareDispatcher::class, fn($container) => new MiddlewareDispatcher($containerRoot));
+$containerRoot->bind(TestMiddleware::class, fn($container) => new TestMiddleware());
 
 
 //Security

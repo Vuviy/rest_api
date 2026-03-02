@@ -71,39 +71,36 @@ final class Router
             if (preg_match($pattern, $uri, $matches)) {
                 array_shift($matches);
 
-                [$controller, $methodName] = $route['action'];
+                [$controllerClass, $methodName] = $route['action'];
                 $middlewares = $route['middlewares'] ?? [];
+
+
 
                 $request = new Request();
 
-                $coreHandler = function (Request $request) use ($controller, $methodName, $matches) {
-                    $controllerInstance = $this->container->get($controller);
-                    return $controllerInstance->$methodName($request, ...$matches);
+                $dispatcher = $this->container->get(MiddlewareDispatcher::class);
+
+                $controller = function (Request $request) use ($controllerClass, $methodName, $matches) {
+                    $instance = $this->container->get($controllerClass);
+                    return $instance->$methodName($request, ...$matches);
                 };
 
-                $pipeline = $this->buildMiddlewarePipeline(
-                    $middlewares,
-                    $coreHandler
-                );
-                return $pipeline($request);
+                return $dispatcher->dispatch($middlewares, $request, $controller);
+
+//                $coreHandler = function (Request $request) use ($controller, $methodName, $matches) {
+//                    $controllerInstance = $this->container->get($controller);
+//                    return $controllerInstance->$methodName($request, ...$matches);
+//                };
+//
+//                $pipeline = $this->buildMiddlewarePipeline(
+//                    $middlewares,
+//                    $coreHandler
+//                );
+//                return $pipeline($request);
             }
         }
 
         return new Response('404 Not Found', HttpStatus::NOT_FOUND);
-    }
-
-    private function buildMiddlewarePipeline(array $middlewares, callable $coreHandler): callable
-    {
-        return array_reduce(
-            array_reverse($middlewares),
-            function ($next, $middlewareClass) {
-                return function (Request $request) use ($middlewareClass, $next) {
-                    $middleware = $this->container->get($middlewareClass);
-                    return $middleware->handle($request, $next);
-                };
-            },
-            $coreHandler
-        );
     }
 
     private function convertToRegex(string $uri): string
