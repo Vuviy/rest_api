@@ -46,4 +46,17 @@ final class Response
 
         return implode('-', $parts);
     }
+
+    public function withAddedHeader(string $name, string $value): self
+    {
+        $clone = clone $this;
+
+        if (isset($clone->headers[$name])) {
+            $clone->headers[$name] .= ', ' . $value;
+        } else {
+            $clone->headers[$name] = $value;
+        }
+
+        return $clone;
+    }
 }

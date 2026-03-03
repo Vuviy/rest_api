@@ -8,8 +8,11 @@ use App\Controller\Security\AuthController;
 use App\Database\Database;
 use App\Exception\ExceptionHandler;
 use App\MiddlewareDispatcher;
+use App\Redis\MyRedisRateLimiter;
+use App\Redis\RedisRateLimiter;
 use App\Repositories\BookRepository;
 use App\Security\Middleware\JwtMiddleware;
+use App\Security\Middleware\RateLimitMiddleware;
 use App\Security\Middleware\TestMiddleware;
 use App\Security\Repositories\BlacklistRepository;
 use App\Security\Repositories\ClientsApiRepository;
@@ -24,6 +27,9 @@ use App\Validators\BookValidator;
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->load();
 
+/*
+ * class Container::class
+ */
 $containerRoot = new Container();
 
 $containerRoot->bind(Database::class, fn() => new Database(config()));
@@ -75,7 +81,17 @@ $containerRoot->bind(JwtMiddleware::class, fn($container) => new JwtMiddleware(
 ));
 
 $containerRoot->bind(MiddlewareDispatcher::class, fn($container) => new MiddlewareDispatcher($containerRoot));
-$containerRoot->bind(TestMiddleware::class, fn($container) => new TestMiddleware());
 
 
 //Security
+
+//Rate Limiting
+
+$containerRoot->bind(RedisRateLimiter::class, fn($container) => new RedisRateLimiter(new Redis()));
+
+$containerRoot->bind(RateLimitMiddleware::class, fn($container) => new RateLimitMiddleware(
+    $container->get(RedisRateLimiter::class),
+    rateLimitingConfig(),
+));
+
+//Rate Limiting

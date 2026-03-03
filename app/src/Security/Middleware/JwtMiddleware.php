@@ -9,7 +9,6 @@ use App\Request;
 use App\Response;
 use App\Security\Repositories\BlacklistRepository;
 use App\Security\Services\JwtService;
-use Exception;
 
 final class JwtMiddleware implements MiddlewareInterface
 {
@@ -40,7 +39,7 @@ final class JwtMiddleware implements MiddlewareInterface
         }
 
         $request->setAttribute('client_id', $decoded->client_id);
-
+//        $request->setAttribute('client_id', 'ttttt');
         return $next($request);
     }
 }

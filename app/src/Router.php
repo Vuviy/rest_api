@@ -61,7 +61,9 @@ final class Router
         $method = $_SERVER['REQUEST_METHOD'];
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-        if (!isset($this->routes[$method])) {
+
+
+        if (!array_key_exists($method, $this->routes)) {
             return new Response('404 Not Found', HttpStatus::NOT_FOUND);
         }
 
@@ -74,8 +76,6 @@ final class Router
                 [$controllerClass, $methodName] = $route['action'];
                 $middlewares = $route['middlewares'] ?? [];
 
-
-
                 $request = new Request();
 
                 $dispatcher = $this->container->get(MiddlewareDispatcher::class);
@@ -86,17 +86,6 @@ final class Router
                 };
 
                 return $dispatcher->dispatch($middlewares, $request, $controller);
-
-//                $coreHandler = function (Request $request) use ($controller, $methodName, $matches) {
-//                    $controllerInstance = $this->container->get($controller);
-//                    return $controllerInstance->$methodName($request, ...$matches);
-//                };
-//
-//                $pipeline = $this->buildMiddlewarePipeline(
-//                    $middlewares,
-//                    $coreHandler
-//                );
-//                return $pipeline($request);
             }
         }
 

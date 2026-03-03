@@ -9,10 +9,10 @@ declare(strict_types=1);
 use App\Controller\BookController;
 use App\Controller\Security\AuthController;
 use App\Security\Middleware\JwtMiddleware;
-use App\Security\Middleware\TestMiddleware;
+use App\Security\Middleware\RateLimitMiddleware;
 
 
-$router->get('/api/v1/books', [BookController::class, 'list'], [JwtMiddleware::class, TestMiddleware::class]);
+$router->get('/api/v1/books', [BookController::class, 'list'], [JwtMiddleware::class, RateLimitMiddleware::class]);
 $router->get('/api/v1/books/{id}', [BookController::class, 'getById'], [JwtMiddleware::class]);
 $router->post('/api/v1/books', [BookController::class, 'store'], [JwtMiddleware::class]);
 $router->put('/api/v1/books/{id}', [BookController::class, 'update'], [JwtMiddleware::class]);

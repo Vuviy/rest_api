@@ -15,6 +15,7 @@ enum HttpStatus: int
     case NOT_FOUND = 404;
     case METHOD_NOT_ALLOWED = 405;
     case VALIDATION_ERROR = 422;
+    case TOO_MANY_REQUESTS = 429;
 
     case SERVER_ERROR = 500;
     case BED_GATEWAY = 502;

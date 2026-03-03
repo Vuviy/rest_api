@@ -22,6 +22,7 @@ final class ExceptionHandler
             ExpiredException::class   => [$this, 'expired'],
             SignatureInvalidException::class   => [$this, 'signatureInvalid'],
             BeforeValidException::class   => [$this, 'beforeValid'],
+            TooManyRequestsException::class   => [$this, 'tooManyRequests'],
         ];
     }
 
@@ -54,6 +55,18 @@ final class ExceptionHandler
                 'error'  => $e->getMessage(),
             ],
             HttpStatus::FORBIDDEN
+        );
+    }
+
+    private function tooManyRequests(TooManyRequestsException $e): Response
+    {
+        return new Response(
+            [
+                'error'  => $e->getMessage(),
+                'limit' => $e->limit,
+                'remining' => $e->remaining,
+            ],
+            HttpStatus::TOO_MANY_REQUESTS
         );
     }
 

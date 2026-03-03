@@ -42,5 +42,16 @@ services:
     volumes:
       - ./app/openapi.yaml:/app/openapi.yaml
 
+  redis:
+    image: redis:8.4.2
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
 volumes:
   mysql_data:
+  redis_data:

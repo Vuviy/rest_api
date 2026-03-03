@@ -2,7 +2,6 @@
 
 namespace App;
 
-use App\Exception\HttpException;
 use Exception;
 
 final class Request
@@ -41,6 +40,11 @@ final class Request
     public function post(string $key = null): mixed
     {
         return $this->getParsedBody($key);
+    }
+
+    public function getMethod(): string
+    {
+        return $_SERVER['REQUEST_METHOD'];
     }
 
     public function get(string $key = null): mixed
@@ -82,6 +86,11 @@ final class Request
     public function files(string $key): array
     {
         return $_FILES[$key] ?? [];
+    }
+
+    public function getServerParam(string $key): ?string
+    {
+        return $_SERVER[$key] ?? null;
     }
 
     public function getJson(): array
