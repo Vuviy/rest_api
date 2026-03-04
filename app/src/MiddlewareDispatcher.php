@@ -16,6 +16,8 @@ final class MiddlewareDispatcher
     ): Response {
 
 
+        //callable
+
         $runner = function (int $index) use (
             &$runner,
             $middlewareClasses,
