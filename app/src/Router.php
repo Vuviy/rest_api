@@ -88,7 +88,6 @@ final class Router
                 return $dispatcher->dispatch($middlewares, $request, $controller);
             }
         }
-
         return new Response('404 Not Found', HttpStatus::NOT_FOUND);
     }
 

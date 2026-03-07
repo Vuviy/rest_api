@@ -7,13 +7,12 @@ use App\Controller\BookController;
 use App\Controller\Security\AuthController;
 use App\Database\Database;
 use App\Exception\ExceptionHandler;
+use App\Exception\ExceptionRegistry;
 use App\MiddlewareDispatcher;
-use App\Redis\MyRedisRateLimiter;
 use App\Redis\RedisRateLimiter;
 use App\Repositories\BookRepository;
 use App\Security\Middleware\JwtMiddleware;
 use App\Security\Middleware\RateLimitMiddleware;
-use App\Security\Middleware\TestMiddleware;
 use App\Security\Repositories\BlacklistRepository;
 use App\Security\Repositories\ClientsApiRepository;
 use App\Security\Services\JwtService;
@@ -51,7 +50,9 @@ $containerRoot->bind(BookValidator::class, fn() => new BookValidator());
 
 $containerRoot->bind(BookListValidator::class, fn() => new BookListValidator());
 
-$containerRoot->bind(ExceptionHandler::class, fn($container) => new ExceptionHandler());
+$containerRoot->bind(ExceptionRegistry::class, fn($container) => new ExceptionRegistry());
+$containerRoot->bind(ExceptionHandler::class, fn($container) => new ExceptionHandler($container->get(ExceptionRegistry::class)));
+
 
 
 //Security
@@ -95,3 +96,6 @@ $containerRoot->bind(RateLimitMiddleware::class, fn($container) => new RateLimit
 ));
 
 //Rate Limiting
+
+
+

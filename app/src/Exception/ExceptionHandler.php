@@ -11,104 +11,17 @@ use Throwable;
 
 final class ExceptionHandler
 {
-    private array $map;
-
-    public function __construct()
-    {
-        $this->map = [
-            ValidationException::class => [$this, 'handleValidation'],
-            NotFoundException::class   => [$this, 'handleNotFound'],
-            AuthorizationException::class   => [$this, 'authorization'],
-            ExpiredException::class   => [$this, 'expired'],
-            SignatureInvalidException::class   => [$this, 'signatureInvalid'],
-            BeforeValidException::class   => [$this, 'beforeValid'],
-            TooManyRequestsException::class   => [$this, 'tooManyRequests'],
-        ];
-    }
+    public function __construct(private ExceptionRegistry $registry){}
 
     public function handle(Throwable $e): Response
     {
+        $handler = $this->registry->get($e);
 
-        $class = get_class($e);
-
-        if (array_key_exists($class, $this->map)) {
-            return call_user_func($this->map[$class], $e);
+        if ($handler) {
+            return $handler($e);
         }
 
         return $this->handleGeneric($e);
-    }
-
-    private function expired(ExpiredException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-            ],
-            HttpStatus::FORBIDDEN
-        );
-    }
-
-    private function signatureInvalid(SignatureInvalidException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-            ],
-            HttpStatus::FORBIDDEN
-        );
-    }
-
-    private function tooManyRequests(TooManyRequestsException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-                'limit' => $e->limit,
-                'remining' => $e->remaining,
-            ],
-            HttpStatus::TOO_MANY_REQUESTS
-        );
-    }
-
-    private function beforeValid(BeforeValidException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-            ],
-            HttpStatus::FORBIDDEN
-        );
-    }
-
-    private function handleValidation(ValidationException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-                'errors' => $e->getPayload()
-            ],
-            HttpStatus::VALIDATION_ERROR
-        );
-    }
-
-    private function authorization(AuthorizationException $e): Response
-    {
-        return new Response(
-            [
-                'error'  => $e->getMessage(),
-            ],
-            HttpStatus::UNAUTHORIZED
-        );
-    }
-
-    private function handleNotFound(NotFoundException $e): Response
-    {
-        return new Response(
-            [
-                'error' => $e->getMessage()
-            ],
-            HttpStatus::NOT_FOUND
-        );
     }
 
     private function handleGeneric(Throwable $e): Response

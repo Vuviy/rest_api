@@ -9,23 +9,10 @@ final class MiddlewareDispatcher
     ) {
     }
 
-    public function dispatch(
-        array $middlewareClasses,
-        Request $request,
-        callable $controller
-    ): Response {
-
-
-        //callable
-
-        $runner = function (int $index) use (
-            &$runner,
-            $middlewareClasses,
-            $request,
-            $controller
-        ): Response {
-
-
+    public function dispatch(array $middlewareClasses, Request $request, callable $controller): Response
+    {
+        $runner = function (int $index, $request) use (&$runner, $middlewareClasses, $controller): Response
+        {
             if (!array_key_exists($index, $middlewareClasses)) {
                 return $controller($request);
             }
@@ -35,10 +22,10 @@ final class MiddlewareDispatcher
 
             return $middleware->handle(
                 $request,
-                fn(Request $req) => $runner($index + 1)
+                fn(Request $req) => $runner($index + 1, $req)
             );
         };
 
-        return $runner(0);
+        return $runner(0, $request);
     }
 }
