@@ -29,6 +29,7 @@ class RateLimitMiddleware  implements MiddlewareInterface
 
         $keys = $this->buildKeys($request, $method);
 
+
         foreach ($keys as $key) {
             if (!$this->limiter->consume($key)) {
 

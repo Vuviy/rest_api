@@ -15,7 +15,6 @@ if ($_SERVER['REQUEST_URI'] === '/favicon.ico') {
     return;
 }
 
-
 //$middlewares = [
 //    function ($request, callable $next) {
 //        $request['srata'] = 5555;
