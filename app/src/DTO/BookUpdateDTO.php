@@ -10,6 +10,7 @@ use App\Attributes\Required;
 final class BookUpdateDTO
 {
     public function __construct(
+        public string $id,
         #[Required()]
         #[NotEmpty()]
         public ?string $title,

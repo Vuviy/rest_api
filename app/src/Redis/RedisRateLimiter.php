@@ -11,7 +11,7 @@ use function Amp\now;
 final class RedisRateLimiter implements RateLimiterInterface
 {
     private string $prefix = 'rate_limit:';
-    public int $capacity = 10;
+    public int $capacity = 100;
     public float $refillRate = 1;
 
     public function __construct(private Redis $redis)
@@ -28,7 +28,6 @@ final class RedisRateLimiter implements RateLimiterInterface
     {
         $this->refillRate = $rate;
     }
-
 
 
     public function consume(string $key, int $tokens = 1): bool

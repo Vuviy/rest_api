@@ -89,6 +89,7 @@ final class BookController
         $data = $request->getJson();
 
         $dto = new BookUpdateDTO(
+            id: $id,
             title: $data['title'] ?? null,
             author: $data['author'] ?? null,
             description: $data['description'] ?? null,
