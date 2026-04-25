@@ -4,28 +4,20 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\DTO\Book;
 use App\DTO\BookCreateDTO;
 use App\DTO\BookPatchDTO;
 use App\DTO\BookUpdateDTO;
 use App\DTO\ListBooksDTO;
 use App\Enums\HttpStatus;
-use App\Exception\ValidationException;
 use App\Request;
 use App\Response;
 use App\Service\BookService;
 use App\Validators\AttributeValidator;
-use App\Validators\BookListValidator;
-use App\Validators\BookValidator;
-use Exception;
-use ReflectionClass;
 
 final class BookController
 {
     public function __construct(
         private BookService $service,
-        private BookValidator $validator,
-        //        private BookListValidator $listValidator,
         private AttributeValidator $attributeValidator,
     ) {
     }
@@ -59,7 +51,7 @@ final class BookController
     {
         $book = $this->service->getById($id);
 
-        return new Response($book, HttpStatus::OK);
+        return new Response($book->toArray(), HttpStatus::OK);
     }
 
     public function store(Request $request): Response

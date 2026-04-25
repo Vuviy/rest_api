@@ -122,7 +122,7 @@ final class BookService
         return implode(', ', $links);
     }
 
-    public function getById(string $id): array
+    public function getById(string $id): Book
     {
         $book = $this->repository->getById($id);
 

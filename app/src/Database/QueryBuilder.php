@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Database;
 
@@ -23,6 +24,10 @@ final class QueryBuilder
 
     public function __construct(Database $db, string $table)
     {
+        if (!preg_match('/^[a-zA-Z0-9_.]+$/', $table)) {
+            throw new \InvalidArgumentException("Invalid table name: {$table}");
+        }
+
         $this->db = $db;
         $this->table = $table;
     }
@@ -30,19 +35,19 @@ final class QueryBuilder
     public function where(string $column, string $operator, $value): self
     {
         if ($value instanceof Raw) {
-            $this->wheres[] = "$column $operator {$value->value}";
+            $this->wheres[] = sprintf('%s %s %s', $column, $operator, $value->value);
             return $this;
         }
 
-        $placeholder = ':' . str_replace('.', '_', $column) . count($this->bindings);
-        $this->wheres[] = "$column $operator $placeholder";
+        $placeholder = sprintf(':%s%d', str_replace('.', '_', $column), count($this->bindings));
+        $this->wheres[] =  sprintf('%s %s %s', $column, $operator, $placeholder);
         $this->bindings[$placeholder] = $value;
         return $this;
     }
 
     public function orderBy(string $column, string $direction = 'ASC'): self
     {
-        $this->orderBy = "$column $direction";
+        $this->orderBy = sprintf('%s %s', $column, $direction);
         return $this;
     }
 
@@ -68,84 +73,62 @@ final class QueryBuilder
         return $this;
     }
 
-//    public function get(array $columns = ['*']): array
-//    {
-//        $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->table}";
-//        if ($this->joins) {
-//            $sql .= ' ' . implode(' ', $this->joins);
-//        }
-//
-//        if ($this->wheres) {
-//            $sql .= " WHERE " . implode(' AND ', $this->wheres);
-//        }
-//
-//        if ($this->groups) {
-//            $sql .= " GROUP BY " . implode(', ', $this->groups);
-//        }
-//
-//        if ($this->havings) {
-//            $sql .= " HAVING " . implode(' AND ', $this->havings);
-//        }
-//
-//        if ($this->orderBy) {
-//            $sql .= " ORDER BY {$this->orderBy}";
-//        }
-//
-//        if ($this->limit !== null) {
-//            $sql .= " LIMIT {$this->limit}";
-//        }
-//
-//        if ($this->offset !== null) {
-//            $sql .= " OFFSET " . (int)$this->offset;
-//        }
-//
-//        return $this->db->select($sql, $this->bindings);
-//    }
-
-
     public function get(array $columns = ['*']): array
     {
         if ($this->cursorColumn !== null && $this->offset !== null) {
             throw new RuntimeException('Cannot use offset with cursor pagination');
         }
 
-        $sql = "SELECT " . implode(', ', $columns) . " FROM {$this->table}";
+        $sanitizedCols = array_map(function (string $col): string {
+            if ($col === '*') {
+                return '*';
+            }
+
+            if (!preg_match('/^[a-zA-Z0-9_.]+$/', $col)) {
+                throw new \InvalidArgumentException("Invalid column name: {$col}");
+            }
+
+            return implode('.', array_map(fn($part) => '"' . $part . '"', explode('.', $col)));
+        }, $columns);
+
+
+        $sql = sprintf('SELECT %s FROM %s', implode(', ', $sanitizedCols), $this->table);
 
         if ($this->joins) {
-            $sql .= ' ' . implode(' ', $this->joins);
+            $sql .=  sprintf(' %s', implode(' ', $this->joins));
         }
 
         if ($this->cursorColumn !== null) {
             $operator = $this->cursorDirection === 'ASC' ? '>' : '<';
 
-            $this->wheres[] = "{$this->cursorColumn} {$operator} ?";
+            $this->wheres[] =  sprintf('%s %s ?', $this->cursorColumn, $operator);
             $this->bindings[] = $this->cursorValue;
 
-            $this->orderBy = "{$this->cursorColumn} {$this->cursorDirection}";
+            $this->orderBy = sprintf('%s %s', $this->cursorColumn, $this->cursorDirection);
         }
 
         if ($this->wheres) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+            $sql .= sprintf(' WHERE %s', implode(' AND ', $this->wheres));
         }
 
         if ($this->groups) {
-            $sql .= " GROUP BY " . implode(', ', $this->groups);
+            $sql .= sprintf(' GROUP BY %s', implode(', ', $this->groups));
         }
 
         if ($this->havings) {
-            $sql .= " HAVING " . implode(' AND ', $this->havings);
+            $sql .= sprintf(' HAVING %s', implode(' AND ', $this->havings));
         }
 
         if ($this->orderBy) {
-            $sql .= " ORDER BY {$this->orderBy}";
+            $sql .= sprintf(' ORDER BY %s', $this->orderBy);
         }
 
         if ($this->limit !== null) {
-            $sql .= " LIMIT {$this->limit}";
+            $sql .= sprintf(' LIMIT %d', $this->limit);
         }
 
         if ($this->offset !== null) {
-            $sql .= " OFFSET {$this->offset}";
+            $sql .= sprintf(' OFFSET %d', $this->offset);
         }
 
         return $this->db->select($sql, $this->bindings);
@@ -161,9 +144,15 @@ final class QueryBuilder
     public function insert(array $data): int
     {
         $columns = array_keys($data);
-        $placeholders = array_map(fn($col) => ':' . $col, $columns);
 
-        $sql = "INSERT INTO {$this->table} (" . implode(',', $columns) . ") VALUES (" . implode(',', $placeholders) . ")";
+        $placeholders = array_map(fn($col) => sprintf(':%s', $col), $columns);
+
+        $sql = sprintf(
+            'INSERT INTO %s (%s) VALUES (%s)',
+            $this->table,
+            implode(',', $columns),
+            implode(',', $placeholders)
+        );
 
         $bindings = [];
         foreach ($data as $col => $val) {
@@ -183,12 +172,17 @@ final class QueryBuilder
         $bindings = $this->bindings;
 
         foreach ($data as $col => $val) {
-            $placeholder = ':' . $col . '_upd';
-            $set[] = "$col = $placeholder";
+            $placeholder = sprintf(':%s_upd', $col);
+            $set[] = sprintf('%s = %s', $col, $placeholder);
             $bindings[$placeholder] = $val;
         }
 
-        $sql = "UPDATE {$this->table} SET " . implode(', ', $set) . " WHERE " . implode(' AND ', $this->wheres);
+        $sql = sprintf(
+            'UPDATE %s SET %s WHERE %s',
+            $this->table,
+            implode(', ', $set),
+            implode(' AND ', $this->wheres)
+        );
         return $this->db->update($sql, $bindings);
     }
 
@@ -198,7 +192,7 @@ final class QueryBuilder
             throw new Exception("Delete without WHERE is not allowed!");
         }
 
-        $sql = "DELETE FROM {$this->table} WHERE " . implode(' AND ', $this->wheres);
+        $sql = sprintf('DELETE FROM %s WHERE %s', $this->table, implode(' AND ', $this->wheres));
         return $this->db->delete($sql, $this->bindings);
     }
 
@@ -213,7 +207,7 @@ final class QueryBuilder
 
     public function join(string $table, string $first, string $operator, string $second, string $type = 'INNER'): self
     {
-        $this->joins[] = strtoupper($type) . " JOIN $table ON $first $operator $second";
+        $this->joins[] = sprintf('%s JOIN %s ON %s %s %s', strtoupper($type), $table, $first, $operator, $second);
         return $this;
     }
 
@@ -229,7 +223,7 @@ final class QueryBuilder
 
     public function crossJoin(string $table): self
     {
-        $this->joins[] = "CROSS JOIN $table";
+        $this->joins[] = sprintf('CROSS JOIN %s', $table);
         return $this;
     }
 
@@ -237,7 +231,7 @@ final class QueryBuilder
     {
         [$sql, $bindings] = $sub->toSubquery();
 
-        $this->wheres[] = "$column IN ($sql)";
+        $this->wheres[] = sprintf('%s IN (%s)', $column, $sql);
         $this->bindings = array_merge($this->bindings, $bindings);
 
         return $this;
@@ -247,7 +241,7 @@ final class QueryBuilder
     {
         [$sql, $bindings] = $sub->toSubquery();
 
-        $this->wheres[] = "EXISTS ($sql)";
+        $this->wheres[] = sprintf('EXISTS (%s)', $sql);
         $this->bindings = array_merge($this->bindings, $bindings);
 
         return $this;
@@ -255,10 +249,10 @@ final class QueryBuilder
 
     private function toSubquery(): array
     {
-        $sql = "SELECT * FROM {$this->table}";
+        $sql = sprintf('SELECT * FROM %s', $this->table);
 
         if ($this->wheres) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+            $sql .= sprintf(' WHERE %s', implode(' AND ', $this->wheres));
         }
 
         return [$sql, $this->bindings];
@@ -266,14 +260,14 @@ final class QueryBuilder
 
     private function aggregate(string $function, string $column)
     {
-        $sql = "SELECT $function($column) as aggregate FROM {$this->table}";
+        $sql = sprintf('SELECT %s(%s) as aggregate FROM %s', $function, $column, $this->table);
 
         if ($this->joins) {
-            $sql .= ' ' . implode(' ', $this->joins);
+            $sql .= sprintf(' %s', implode(' ', $this->joins));
         }
 
         if ($this->wheres) {
-            $sql .= " WHERE " . implode(' AND ', $this->wheres);
+            $sql .=  sprintf(' WHERE %s', implode(' AND ', $this->wheres));
         }
 
         return $this->db->select($sql, $this->bindings)[0]['aggregate'];
@@ -312,8 +306,8 @@ final class QueryBuilder
 
     public function having(string $column, string $operator, $value): self
     {
-        $ph = ':having_' . count($this->bindings);
-        $this->havings[] = "$column $operator $ph";
+        $ph = sprintf(':having_%d', count($this->bindings));
+        $this->havings[] = sprintf('%s %s %s', $column, $operator, $ph);
         $this->bindings[$ph] = $value;
         return $this;
     }

@@ -1,6 +1,6 @@
 <?php
 
-function config()
+function configDb()
 {
     return require __DIR__ . '/../config/database.php';
 }

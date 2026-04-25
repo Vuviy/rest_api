@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 return [
-    'default' => 'mysql',
+    'default' => getenv('SQL_DRIVER'),
 
     'connections' => [
         'sqlite' => [
@@ -20,10 +20,10 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'host' => 'pgsql',
-            'dbname' => 'app',
-            'user' => 'app',
-            'password' => 'secret',
+            'host' => getenv('DB_HOST'),
+            'dbname' => getenv('DB_NAME'),
+            'user' => getenv('DB_USER'),
+            'password' => getenv('DB_PASS'),
         ],
     ],
 ];

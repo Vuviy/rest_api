@@ -5,7 +5,12 @@ declare(strict_types=1);
 use App\Container;
 use App\Controller\BookController;
 use App\Controller\Security\AuthController;
+use App\Database\ConnectionFactory;
 use App\Database\Database;
+use App\Database\Drivers\MySqlDriver;
+use App\Database\Drivers\PgSqlDriver;
+use App\Database\Drivers\SqliteDriver;
+use App\Database\QueryExecutor;
 use App\Exception\ExceptionHandler;
 use App\Exception\ExceptionRegistry;
 use App\MiddlewareDispatcher;
@@ -20,8 +25,6 @@ use App\Security\Services\TokenService;
 use App\Security\TokenFactory;
 use App\Service\BookService;
 use App\Validators\AttributeValidator;
-use App\Validators\BookListValidator;
-use App\Validators\BookValidator;
 
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->load();
@@ -31,7 +34,28 @@ $dotenv->load();
  */
 $containerRoot = new Container();
 
-$containerRoot->bind(Database::class, fn() => new Database(config()));
+
+$containerRoot->bind(ConnectionFactory::class, function () {
+    $factory = new ConnectionFactory();
+    $factory->register(new PgSqlDriver());
+    $factory->register(new MySqlDriver());
+    $factory->register(new SqliteDriver());
+    return $factory;
+});
+
+$containerRoot->bind(PDO::class, function ($container) {
+    $config = configDb();
+    $factory = $container->get(ConnectionFactory::class);
+    $driverName = $config['connections'][$config['default']]['driver'];
+    $settings = $config['connections'][$config['default']];
+    return $factory->create($driverName, $settings);
+});
+
+$containerRoot->bind(QueryExecutor::class, fn($container) => new QueryExecutor($container->get(PDO::class))
+);
+
+$containerRoot->bind(Database::class, fn($container) => new Database($container->get(QueryExecutor::class))
+);
 
 $containerRoot->bind(BookRepository::class, fn($container) => new BookRepository($container->get(Database::class)));
 
@@ -41,23 +65,17 @@ $containerRoot->bind(AttributeValidator::class, fn($container) => new AttributeV
 
 $containerRoot->bind(BookController::class, fn($container) => new BookController(
     $container->get(BookService::class),
-    $container->get(BookValidator::class),
-//    $container->get(BookListValidator::class),
     $container->get(AttributeValidator::class)
 ));
-
-$containerRoot->bind(BookValidator::class, fn() => new BookValidator());
-
-$containerRoot->bind(BookListValidator::class, fn() => new BookListValidator());
 
 $containerRoot->bind(ExceptionRegistry::class, fn($container) => new ExceptionRegistry());
 $containerRoot->bind(ExceptionHandler::class, fn($container) => new ExceptionHandler($container->get(ExceptionRegistry::class)));
 
 
-
 //Security
 
 $containerRoot->bind(BlacklistRepository::class, fn($container) => new BlacklistRepository($container->get(Database::class)));
+$containerRoot->bind(ClientsApiRepository::class, fn($container) => new ClientsApiRepository($container->get(Database::class)));
 $containerRoot->bind(TokenFactory::class, fn($container) => new TokenFactory());
 
 $containerRoot->bind(JwtService::class, fn($container) => new JwtService(

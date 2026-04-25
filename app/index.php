@@ -10,41 +10,9 @@ use App\Exception\ExceptionHandler;
 use App\Router;
 
 
-
 if ($_SERVER['REQUEST_URI'] === '/favicon.ico') {
     return;
 }
-
-//$middlewares = [
-//    function ($request, callable $next) {
-//        $request['srata'] = 5555;
-//        echo 'Mid 1';
-//        return $next($request);
-//    },
-//    function ($request, callable $next) {
-//        echo 'Mid 2';
-//        return $next($request);
-//    }
-//];
-//
-//
-//$controller = function ($req) {
-//    echo "Controller\n";
-//    return "Response";
-//};
-//
-//$request = ['get' => 'ddddd'];
-//
-//$runner = function ($index, $request) use (&$runner, $middlewares, $controller) {
-//
-//    if (!array_key_exists($index, $middlewares)) {
-//        return $controller($request);
-//    }
-//    $middleware = $middlewares[$index];
-//    return $middleware($request, fn($req) => $runner($index + 1, $req));
-//};
-//$runner(0, $request);
-//dd($request);
 
 
 /**

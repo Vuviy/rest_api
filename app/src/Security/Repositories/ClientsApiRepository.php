@@ -28,11 +28,11 @@ final class ClientsApiRepository
         return $this->db->table(self::TABLE_NAME)->get();
     }
 
-    public function findByClientId(int $id): ClientApi
+    public function findByClientId(string $id): ClientApi
     {
-        $data = $this->db->table(self::TABLE_NAME)->where('client_id', '=', $id)->get();
+        $data = $this->db->table(self::TABLE_NAME)->where('client_id', '=', $id)->first();
 
-        if (false === $data) {
+        if (null === $data) {
             throw new NotFoundException('Client not found');
         }
 

@@ -1,10 +1,11 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Repositories;
 
 use App\Database\Database;
 use App\DTO\Book;
-use InvalidArgumentException;
+use App\Exception\NotFoundException;
 
 final class BookRepository
 {
@@ -132,6 +133,9 @@ final class BookRepository
     {
         $book = $this->db->table(self::TABLE_NAME)->where('id', '=', $id)->first();
 
+        if (null === $book) {
+            throw new NotFoundException('book not found');
+        }
         $book = Book::fromArray($book);
 
         return $book;

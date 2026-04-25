@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App;
 
 use App\Enums\HttpStatus;
@@ -61,8 +63,6 @@ final class Router
         $method = $_SERVER['REQUEST_METHOD'];
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-
-
         if (!array_key_exists($method, $this->routes)) {
             return new Response('404 Not Found', HttpStatus::NOT_FOUND);
         }
@@ -84,6 +84,7 @@ final class Router
                     $instance = $this->container->get($controllerClass);
                     return $instance->$methodName($request, ...$matches);
                 };
+
 
                 return $dispatcher->dispatch($middlewares, $request, $controller);
             }
