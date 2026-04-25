@@ -49,7 +49,7 @@ A fully featured REST API for a book repository built with **pure PHP** (no fram
 ## Project Structure
 
 This repository contains only the PHP application code.
-Docker configuration lives in a separate repository: [docker_for_rest_api](https://github.com/Vuviy/docker_for_rest_api) *(update link if needed)*
+Docker configuration lives in a separate repository: [docker_for_rest_api](https://github.com/Vuviy/docker_for_rest_api)
 
 ```
 rest_api/                ← this repo (PHP app)
@@ -88,19 +88,23 @@ git clone https://github.com/Vuviy/rest_api.git app
 
 ```bash
 cp app/.env.example app/.env
+
+cp .env.example .env
 ```
 
-**4. Configure `.env`**
+**4. Configure `app/.env` `.env` **
 
 ```env
-DB_CONNECTION=mysql
 DB_HOST=db_rest_api
-DB_PORT=3306
-DB_DATABASE=blog
-DB_USERNAME=root
-DB_PASSWORD=secret
+DB_NAME=db_rest_api
+DB_USER=root
+DB_PASS=root
+SQL_DRIVER=mysql
+```
 
-MYSQL_ROOT_PASSWORD=secret
+```env
+DB_DATABASE=db_rest_api
+MYSQL_ROOT_PASSWORD=root
 ```
 
 **5. Start Docker containers**
@@ -112,46 +116,57 @@ docker compose up -d
 **6. Install dependencies**
 
 ```bash
-docker compose exec rest_api_php composer install
+docker exec rest_api_php composer install
 ```
 
 **7. Generate RSA keys for JWT**
 
 ```bash
-docker compose exec rest_api_php mkdir -p storage/keys
+docker exec rest_api_php mkdir -p storage/keys
 
-docker compose exec rest_api_php openssl genpkey -algorithm RSA \
+docker exec rest_api_php openssl genpkey -algorithm RSA \
   -out storage/keys/private.pem -pkeyopt rsa_keygen_bits:4096
 
-docker compose exec rest_api_php openssl rsa -pubout \
+docker exec rest_api_php openssl rsa -pubout \
   -in storage/keys/private.pem -out storage/keys/public.pem
 ```
 
 Set correct permissions:
 
 ```bash
-docker compose exec rest_api_php chmod 600 storage/keys/private.pem
-docker compose exec rest_api_php chmod 644 storage/keys/public.pem
+docker exec rest_api_php chmod 600 storage/keys/private.pem
+docker exec rest_api_php chmod 644 storage/keys/public.pem
 ```
 
 > If you get a permission error reading the keys inside the container, the issue is that the file owner differs from the PHP process user. Fix it with:
 > ```bash
-> docker compose exec rest_api_php chown www-data:www-data storage/keys/private.pem storage/keys/public.pem
+> docker exec rest_api_php chown www-data:www-data storage/keys/private.pem storage/keys/public.pem
 > ```
 > Avoid using `chmod 777` in production — it makes private keys readable by everyone on the system.
 
-**8. Run migrations**
+**8. Run SQL for creating tables**
 
 ```bash
-docker compose exec rest_api_php php migrations/migrate.php
-```
 
-**9. Open in browser**
+CREATE TABLE books (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title       VARCHAR(255) NOT NULL,
+    description TEXT         NOT NULL,
+    author      VARCHAR(255) NOT NULL,
+    created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE token_blacklist (
+    jti        VARCHAR(36)  NOT NULL PRIMARY KEY,
+    expires_at BIGINT       NOT NULL
+);
+
+CREATE TABLE api_clients (
+    client_id     VARCHAR(36)  NOT NULL PRIMARY KEY,
+    client_secret VARCHAR(255) NOT NULL
+);
 
 ```
-http://localhost
-```
-
 ---
 
 ## API Documentation
@@ -181,9 +196,8 @@ Login with credentials from your `.env` file (`MYSQL_ROOT_PASSWORD`).
 ## Authentication Flow
 
 ```
-POST /api/v1/auth/token          ← get access + refresh tokens
-POST /api/v1/auth/refresh        ← rotate refresh token
-POST /api/v1/auth/revoke         ← blacklist token (logout)
+POST /api/v1/auth          ← get access + refresh tokens
+POST /api/v1/refresh        ← rotate refresh token
 ```
 
 Include the access token in requests:

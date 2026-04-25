@@ -8,6 +8,89 @@ servers:
   - url: http://localhost
 
 paths:
+  /api/v1/auth:
+    post:
+      summary: Get access and refresh tokens
+      description: Authenticate using client credentials to receive a JWT token pair
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ client_id, client_secret ]
+              properties:
+                client_id:
+                  type: string
+                  format: uuid
+                  example: "72f70134-06a2-4847-bc45-f8555cd354b9"
+                client_secret:
+                  type: string
+                  example: "supersecretstring"
+      responses:
+        "200":
+          description: Token pair issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  client_id:
+                    type: string
+                    format: uuid
+                  issued:
+                    type: integer
+                    description: Unix timestamp of token issue time
+                  expires:
+                    type: integer
+                    description: Unix timestamp of access token expiration (issued + 900)
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/refresh:
+    post:
+      summary: Rotate refresh token
+      description: Exchange a valid refresh token for a new token pair. Old refresh token is revoked (token rotation).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ refresh_token, client_id ]
+              properties:
+                refresh_token:
+                  type: string
+                client_id:
+                  type: string
+                  format: uuid
+                  example: "72f70134-06a2-4847-bc45-f8555cd354b9"
+      responses:
+        "200":
+          description: New token pair issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+
+
+
+
+
+
+
+
+
+
   /api/v1/books:
     get:
       summary: List books
@@ -254,3 +337,11 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationErrorResponse'
+
+
+    Unauthorized:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
