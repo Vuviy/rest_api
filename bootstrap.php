@@ -27,6 +27,7 @@ use App\Service\BookService;
 use App\Validators\AttributeValidator;
 use App\Versioning\VersionResolver;
 use App\Versioning\VersionMiddleware;
+use App\Versioning\DeprecationMiddleware;
 
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->load();
@@ -132,6 +133,11 @@ $containerRoot->bind(VersionResolver::class, function () {
 $containerRoot->bind(VersionMiddleware::class, fn($container) => new VersionMiddleware(
     $container->get(VersionResolver::class)
 ));
+
+$containerRoot->bind(DeprecationMiddleware::class, function () {
+    $config = versioningConfig();
+    return new DeprecationMiddleware($config['deprecated']);
+});
 
 //Versioning
 
