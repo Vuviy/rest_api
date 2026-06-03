@@ -25,6 +25,8 @@ use App\Security\Services\TokenService;
 use App\Security\TokenFactory;
 use App\Service\BookService;
 use App\Validators\AttributeValidator;
+use App\Versioning\VersionResolver;
+use App\Versioning\VersionMiddleware;
 
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->load();
@@ -114,6 +116,24 @@ $containerRoot->bind(RateLimitMiddleware::class, fn($container) => new RateLimit
 ));
 
 //Rate Limiting
+
+
+//Versioning
+
+$containerRoot->bind(VersionResolver::class, function () {
+    $config = versioningConfig();
+    return new VersionResolver(
+        $config['supported'],
+        $config['default'],
+        $config['media_type'],
+    );
+});
+
+$containerRoot->bind(VersionMiddleware::class, fn($container) => new VersionMiddleware(
+    $container->get(VersionResolver::class)
+));
+
+//Versioning
 
 
 

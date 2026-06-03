@@ -8,7 +8,7 @@
 | 0 | Fix `Router::put()` so it forwards `$middlewares` (pre-work bug) | `src/Router.php` | — | ✅ |
 | 1 | Version config: supported versions, fixed default, deprecated map, sunset dates, migration link | `config/versioning.php` + `functions/functions.php` accessor | — | ✅ |
 | 2 | `VersionResolver` — pure logic: parse `X-API-Version`, parse `Accept;version`, apply priority, fall back to default for unknown | `src/Versioning/VersionResolver.php` | 1 | ✅ |
-| 3 | Version middleware — calls resolver, stores `Request::setAttribute('api_version', ...)`, registered in `bootstrap.php` | `src/Security/Middleware/...`, `bootstrap.php` | 2 | ☐ |
+| 3 | Version middleware — calls resolver, stores `Request::setAttribute('api_version', ...)`, registered in `bootstrap.php` | `src/Versioning/VersionMiddleware.php`, `bootstrap.php` | 2 | ✅ |
 | 4 | Deprecation/Sunset response middleware — adds headers via `Response::withAddedHeader()` after `$next` | `src/.../Middleware`, `bootstrap.php` | 1, 3 | ☐ |
 | 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middleware | `routes/api.php` | 0, 3, 4 | ☐ |
 | 6 | Migration guide v1 → v2 | `docs/` or `README`/`openapi.yaml` | 5 | ☐ |
