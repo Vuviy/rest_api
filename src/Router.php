@@ -36,7 +36,8 @@ final class Router
     {
         $this->routes['PUT'][] = [
             'uri' => $uri,
-            'action' => $action
+            'action' => $action,
+            'middlewares' => $middlewares,
         ];
     }
 

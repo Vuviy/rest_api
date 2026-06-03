@@ -1,0 +1,54 @@
+# ADR 0001: API versioning strategy
+
+- **Date:** 2026-06-03
+- **Status:** Accepted
+
+## Context
+The API currently has a single version hardcoded into route paths (`/api/v1/...` in
+`routes/api.php`); `Router::dispatch()` (`src/Router.php:61`) matches the full URI with a regex and
+treats the version as part of the string, not as a first-class concept. We must support three
+version-selection strategies (URL, `X-API-Version` header, `Accept` content negotiation),
+deprecation/sunset signalling, and must not break existing v1 clients.
+
+## Options considered
+### Routing
+- **B1 — separate versioned route sets** (`/api/v1/...`, `/api/v2/...`). Simple, explicit, isolates
+  versions, barely touches `Router`. But natively serves only the URL strategy.
+- **B2 — single neutral route + version dispatch inside the controller.** One path serves all
+  strategies, but the version gets smeared across controllers (anti-pattern) and controllers grow
+  an extra responsibility.
+- **B3 — version-aware router** with a `version → handler` registry. Cleanest and most scalable,
+  but the most complex and highest risk to existing behavior; unjustified for only two versions today.
+
+## Decision
+1. **Two path families.** URL strategy uses versioned paths (`/api/v1/...`, `/api/v2/...`).
+   `X-API-Version` and `Accept` apply **only** on the version-neutral path (`/api/...`). The two
+   never overlap, so the URL-vs-header conflict cannot occur by construction.
+2. **Default version is fixed** (v1), not "latest". A future v3 release must not silently migrate
+   neutral-path clients.
+3. **Resolution priority on the neutral path:** `X-API-Version` → `Accept;version` → default.
+   The explicit header wins over content negotiation (explicit beats implicit; matches Stripe/GitHub).
+4. **Unknown/unsupported version:** fall back to the default version and add a warning header
+   (not a 400) — client-friendly, but does not silently hide the client's mistake.
+5. **Resolution lives in a dedicated `VersionResolver`** (pure logic) invoked by a thin version
+   middleware that stores the result via `Request::setAttribute('api_version', ...)`
+   (same mechanism `JwtMiddleware.php:41` already uses for `client_id`).
+6. **Deprecation/Sunset headers** are added centrally by a response-stage middleware using
+   `Response::withAddedHeader()` (`Response.php:50`); the deprecated-versions + sunset-dates config
+   lives in `config/` (mirrors `config/rate_limiting.php`).
+7. **Routing approach: B1 + a small neutral-path `version → handler` mapping** so versioned and
+   neutral paths reuse the same handlers (no duplication). Full B3 is deferred.
+8. **Pre-work:** fix the `Router::put()` bug (`src/Router.php:35-41`) that drops `$middlewares`,
+   otherwise version middleware never runs on PUT routes.
+
+## Rationale
+Project rule is *avoid unnecessary abstractions* (YAGNI). A full version registry (B3) pays off
+from 3+ versions or large inter-version differences; with two versions it adds more complexity than
+value. The chosen hybrid gets clean resolution and no controller pollution while keeping the router
+change minimal and v1 untouched.
+
+## Consequences
+- Positive: v1 clients are fully unaffected; conflicts are designed out; deprecation is centralized;
+  resolution logic is unit-testable in isolation.
+- Negative / debt: neutral and versioned paths must be kept in sync via the handler mapping; if the
+  number of versions grows, revisit B3. The fixed default must be updated deliberately on major bumps.
