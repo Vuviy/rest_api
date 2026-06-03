@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 /** @var \App\Router $router */
 
 
@@ -12,7 +11,6 @@ use App\Security\Middleware\JwtMiddleware;
 use App\Security\Middleware\RateLimitMiddleware;
 use App\Versioning\VersionMiddleware;
 use App\Versioning\DeprecationMiddleware;
-
 
 /*
  * Book routes are registered for every version family:

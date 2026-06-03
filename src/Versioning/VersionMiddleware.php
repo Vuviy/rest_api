@@ -25,6 +25,9 @@ final class VersionMiddleware implements MiddlewareInterface
         $version = $this->resolver->resolve($request);
         $request->setAttribute('api_version', $version);
 
-        return $next($request);
+        /** @var Response $response */
+        $response = $next($request);
+
+        return $response;
     }
 }

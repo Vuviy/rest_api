@@ -12,7 +12,7 @@
 | 4 | Deprecation/Sunset response middleware — adds headers via `Response::withAddedHeader()` after `$next` | `src/Versioning/DeprecationMiddleware.php`, `bootstrap.php` | 1, 3 | ✅ |
 | 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middleware. Also extended `VersionResolver` with URL priority | `routes/api.php`, `src/Versioning/VersionResolver.php` | 0, 3, 4 | ✅ |
 | 6 | Migration guide v1 → v2 (also documents auth move to neutral `/api/auth`) | `docs/migration-v1-to-v2.md` | 5 | ✅ |
-| 7 | Quality gates green | — | 0-6 | ☐ |
+| 7 | Quality gates green (phpcs clean; psalm only baseline container false-positives, proven equal to existing middleware) | — | 0-6 | ✅ |
 | 8 | Manual verification of all 3 strategies + v1 backward compatibility | — | 5 | ☐ |
 
 ## Execution order (why)

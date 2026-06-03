@@ -54,11 +54,9 @@ $containerRoot->bind(PDO::class, function ($container) {
     return $factory->create($driverName, $settings);
 });
 
-$containerRoot->bind(QueryExecutor::class, fn($container) => new QueryExecutor($container->get(PDO::class))
-);
+$containerRoot->bind(QueryExecutor::class, fn($container) => new QueryExecutor($container->get(PDO::class)));
 
-$containerRoot->bind(Database::class, fn($container) => new Database($container->get(QueryExecutor::class))
-);
+$containerRoot->bind(Database::class, fn($container) => new Database($container->get(QueryExecutor::class)));
 
 $containerRoot->bind(BookRepository::class, fn($container) => new BookRepository($container->get(Database::class)));
 
@@ -140,6 +138,3 @@ $containerRoot->bind(DeprecationMiddleware::class, function () {
 });
 
 //Versioning
-
-
-

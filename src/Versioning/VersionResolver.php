@@ -45,6 +45,7 @@ final class VersionResolver
             return $this->normalize($urlVersion);
         }
 
+
         // 1. Explicit version header wins over content negotiation (explicit beats implicit).
         $fromHeader = $this->parseVersionHeader($versionHeader);
         if ($fromHeader !== null) {
