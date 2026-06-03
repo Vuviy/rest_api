@@ -10,17 +10,43 @@ use App\Controller\BookController;
 use App\Controller\Security\AuthController;
 use App\Security\Middleware\JwtMiddleware;
 use App\Security\Middleware\RateLimitMiddleware;
+use App\Versioning\VersionMiddleware;
+use App\Versioning\DeprecationMiddleware;
 
 
-$router->get('/api/v1/books', [BookController::class, 'list'], [JwtMiddleware::class, RateLimitMiddleware::class]);
-$router->get('/api/v1/books/{id}', [BookController::class, 'getById'], [JwtMiddleware::class]);
-$router->post('/api/v1/books', [BookController::class, 'store'], [JwtMiddleware::class]);
-$router->put('/api/v1/books/{id}', [BookController::class, 'update'], [JwtMiddleware::class]);
-$router->patch('/api/v1/books/{id}', [BookController::class, 'patch'], [JwtMiddleware::class]);
-$router->delete('/api/v1/books/{id}', [BookController::class, 'destroy'], [JwtMiddleware::class]);
+/*
+ * Book routes are registered for every version family:
+ *   /api/v1/...  and  /api/v2/...  → URL versioning (version comes from the path)
+ *   /api/...                       → neutral path  (version comes from X-API-Version / Accept)
+ *
+ * VersionMiddleware (first) resolves the version onto the request for ALL families, so
+ * DeprecationMiddleware (last) can emit Deprecation/Sunset headers uniformly. One controller
+ * method serves every version — the version travels on the request attribute — so there is
+ * no per-version handler duplication. Add v3 by appending one prefix below.
+ */
+$versionPrefixes = ['/api/v1', '/api/v2', '/api'];
+
+$bookRoutes = [
+    ['get',    '/books',      'list',    [RateLimitMiddleware::class]],
+    ['get',    '/books/{id}', 'getById', []],
+    ['post',   '/books',      'store',   []],
+    ['put',    '/books/{id}', 'update',  []],
+    ['patch',  '/books/{id}', 'patch',   []],
+    ['delete', '/books/{id}', 'destroy', []],
+];
+
+foreach ($versionPrefixes as $prefix) {
+    foreach ($bookRoutes as [$method, $suffix, $action, $extra]) {
+        $router->$method(
+            $prefix . $suffix,
+            [BookController::class, $action],
+            [VersionMiddleware::class, JwtMiddleware::class, ...$extra, DeprecationMiddleware::class],
+        );
+    }
+}
 
 
 //security
-$router->post('/api/v1/auth', [AuthController::class, 'auth']);
-$router->post('/api/v1/refresh', [AuthController::class, 'refresh']);
+$router->post('/api/auth', [AuthController::class, 'auth']);
+$router->post('/api/refresh', [AuthController::class, 'refresh']);
 //security

@@ -10,8 +10,8 @@
 | 2 | `VersionResolver` — pure logic: parse `X-API-Version`, parse `Accept;version`, apply priority, fall back to default for unknown | `src/Versioning/VersionResolver.php` | 1 | ✅ |
 | 3 | Version middleware — calls resolver, stores `Request::setAttribute('api_version', ...)`, registered in `bootstrap.php` | `src/Versioning/VersionMiddleware.php`, `bootstrap.php` | 2 | ✅ |
 | 4 | Deprecation/Sunset response middleware — adds headers via `Response::withAddedHeader()` after `$next` | `src/Versioning/DeprecationMiddleware.php`, `bootstrap.php` | 1, 3 | ✅ |
-| 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middleware | `routes/api.php` | 0, 3, 4 | ☐ |
-| 6 | Migration guide v1 → v2 | `docs/` or `README`/`openapi.yaml` | 5 | ☐ |
+| 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middleware. Also extended `VersionResolver` with URL priority | `routes/api.php`, `src/Versioning/VersionResolver.php` | 0, 3, 4 | ✅ |
+| 6 | Migration guide v1 → v2 (also documents auth move to neutral `/api/auth`) | `docs/migration-v1-to-v2.md` | 5 | ✅ |
 | 7 | Quality gates green | — | 0-6 | ☐ |
 | 8 | Manual verification of all 3 strategies + v1 backward compatibility | — | 5 | ☐ |
 
