@@ -24,7 +24,11 @@ return [
     'deprecated' => [
         1 => [
             'sunset' => '2026-12-31',
-            'link'   => 'https://example.com/docs/api/migration/v1-to-v2',
+            // Host-relative URI on purpose: an RFC 8288 Link target may be relative and is
+            // resolved by the client against the request URL, so it always points to the
+            // host the API is actually served from (localhost in dev, the real domain in
+            // prod) without hardcoding an environment-specific host here.
+            'link'   => '/docs/migration-v1-to-v2',
         ],
     ],
 ];

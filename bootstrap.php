@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Container;
 use App\Controller\BookController;
+use App\Controller\MigrationGuideController;
 use App\Controller\Security\AuthController;
 use App\Database\ConnectionFactory;
 use App\Database\Database;
@@ -71,6 +72,9 @@ $containerRoot->bind(BookController::class, fn($container) => new BookController
     $container->get(BookService::class),
     $container->get(AttributeValidator::class),
     $container->get(BookTransformerFactory::class),
+));
+$containerRoot->bind(MigrationGuideController::class, fn($container) => new MigrationGuideController(
+    __DIR__ . '/docs',
 ));
 
 $containerRoot->bind(ExceptionRegistry::class, fn($container) => new ExceptionRegistry());

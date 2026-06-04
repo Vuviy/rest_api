@@ -59,7 +59,7 @@ includes these headers:
 ```
 Deprecation: true
 Sunset: Thu, 31 Dec 2026 00:00:00 GMT
-Link: <https://example.com/docs/api/migration/v1-to-v2>; rel="deprecation"
+Link: /docs/api/migration/v1-to-v2>; rel="deprecation"
 ```
 
 - `Deprecation: true` — this version is deprecated.

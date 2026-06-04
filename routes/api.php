@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 
 use App\Controller\BookController;
+use App\Controller\MigrationGuideController;
 use App\Controller\Security\AuthController;
 use App\Security\Middleware\JwtMiddleware;
 use App\Security\Middleware\RateLimitMiddleware;
@@ -48,3 +49,7 @@ foreach ($versionPrefixes as $prefix) {
 $router->post('/api/auth', [AuthController::class, 'auth']);
 $router->post('/api/refresh', [AuthController::class, 'refresh']);
 //security
+
+//docs
+$router->get('/docs/migration-v1-to-v2', [MigrationGuideController::class, 'v1ToV2']);
+//docs

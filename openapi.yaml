@@ -1,17 +1,61 @@
 openapi: 3.0.3
 info:
   title: Books API
-  version: 1.0.0
-  description: REST API for managing books (v1)
+  version: 2.0.0
+  description: |
+    REST API for managing books.
+
+    ## Versioning
+
+    **Supported versions: v1, v2. Default: v1** (fixed — it never auto-jumps to the newest version).
+
+    Pick a version with any of three interchangeable strategies:
+
+    1. **URL path** (recommended — explicit and cacheable):
+       `GET /api/v1/books`, `GET /api/v2/books`.
+       The version in the path is authoritative; version headers are ignored here.
+    2. **`X-API-Version` header** on the version-neutral path:
+       `GET /api/books` + `X-API-Version: 2`.
+    3. **`Accept` content negotiation** on the neutral path:
+       `GET /api/books` + `Accept: application/vnd.api+json;version=2`.
+
+    **Resolution priority on the neutral path:** `X-API-Version` → `Accept;version` → default (v1).
+    An unknown version via header/`Accept` falls back to the default; an unknown version in the
+    URL (e.g. `/api/v99/...`) is `404`.
+
+    > Swagger UI documents the explicit `/api/vN/...` paths. The version-neutral `/api/...` path
+    > with header/`Accept` selection behaves identically — see the migration guide.
+
+    ## Deprecation
+
+    **v1 is deprecated (sunset: 2026-12-31).** Every v1 response carries RFC 8594 headers:
+    `Deprecation: true`, `Sunset: <http-date>`, and `Link: </docs/migration-v1-to-v2>; rel="deprecation"`.
+
+    ## What changed in v2
+
+    v2 changes the **book response representation only** (request bodies are unchanged):
+    `title` is renamed to `name`, and `author` becomes a nested object.
+    Authentication is version-neutral and lives at `/api/auth` and `/api/refresh` (no version prefix).
 
 servers:
   - url: http://localhost
 
+tags:
+  - name: Auth
+    description: Version-neutral authentication endpoints (the token is the same across versions).
+  - name: Books v1
+    description: Book operations — DEPRECATED (sunset 2026-12-31). All v1 responses include Deprecation/Sunset/Link headers.
+  - name: Books v2
+    description: Book operations — current representation (`name` field, nested `author`).
+  - name: Docs
+    description: Human-readable documentation endpoints.
+
 paths:
-  /api/v1/auth:
+  /api/auth:
     post:
-      summary: Get access and refresh tokens
-      description: Authenticate using client credentials to receive a JWT token pair
+      tags: [Auth]
+      summary: Get access and refresh tokens (version-neutral)
+      description: Authenticate using client credentials to receive a JWT token pair. Not versioned — the same token works across all API versions.
       requestBody:
         required: true
         content:
@@ -51,9 +95,10 @@ paths:
         "401":
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/refresh:
+  /api/refresh:
     post:
-      summary: Rotate refresh token
+      tags: [Auth]
+      summary: Rotate refresh token (version-neutral)
       description: Exchange a valid refresh token for a new token pair. Old refresh token is revoked (token rotation).
       requestBody:
         required: true
@@ -82,60 +127,31 @@ paths:
                   refresh_token:
                     type: string
 
-
-
-
-
-
-
-
-
-
   /api/v1/books:
     get:
-      summary: List books
-      description: Returns paginated list of books
+      tags: [Books v1]
+      deprecated: true
+      summary: List books (v1)
+      description: Returns a paginated list of books in the v1 representation.
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - in: query
-          name: per_page
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
-        - in: query
-          name: sort
-          schema:
-            type: string
-            enum: [id, title, author, description, created_at]
-        - in: query
-          name: orderBy
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: asc
-        - in: query
-          name: author
-          schema:
-            type: string
-        - in: query
-          name: title
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/AuthorFilter'
+        - $ref: '#/components/parameters/TitleFilter'
       responses:
         "200":
           description: Paginated list
           headers:
             Link:
-              description: RFC5988 pagination links
+              description: RFC 5988 pagination links plus an RFC 8594 `rel="deprecation"` link to the migration guide.
               schema:
                 type: string
+            Deprecation:
+              $ref: '#/components/headers/Deprecation'
+            Sunset:
+              $ref: '#/components/headers/Sunset'
           content:
             application/json:
               schema:
@@ -146,7 +162,154 @@ paths:
           $ref: '#/components/responses/ValidationError'
 
     post:
-      summary: Create book
+      tags: [Books v1]
+      deprecated: true
+      summary: Create book (v1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        "201":
+          description: Created
+          headers:
+            Location:
+              description: URL of created resource
+              schema:
+                type: string
+            Deprecation:
+              $ref: '#/components/headers/Deprecation'
+            Sunset:
+              $ref: '#/components/headers/Sunset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/books/{id}:
+    get:
+      tags: [Books v1]
+      deprecated: true
+      summary: Get book by ID (v1)
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        "200":
+          description: Book found
+          headers:
+            Deprecation:
+              $ref: '#/components/headers/Deprecation'
+            Sunset:
+              $ref: '#/components/headers/Sunset'
+            Link:
+              $ref: '#/components/headers/DeprecationLink'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Books v1]
+      deprecated: true
+      summary: Replace book (v1)
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    patch:
+      tags: [Books v1]
+      deprecated: true
+      summary: Partially update book (v1)
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Books v1]
+      deprecated: true
+      summary: Delete book (v1)
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/books:
+    get:
+      tags: [Books v2]
+      summary: List books (v2)
+      description: |
+        Returns a paginated list of books in the **v2 representation**
+        (`title` → `name`, `author` as a nested object). Request parameters are
+        identical to v1.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/AuthorFilter'
+        - $ref: '#/components/parameters/TitleFilter'
+      responses:
+        "200":
+          description: Paginated list
+          headers:
+            Link:
+              description: RFC 5988 pagination links
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookV2'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+    post:
+      tags: [Books v2]
+      summary: Create book (v2)
+      description: Request body is unchanged from v1 (`title`, `author`, `description`); only the read representation differs between versions.
       requestBody:
         required: true
         content:
@@ -164,40 +327,31 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
+                $ref: '#/components/schemas/IdResponse'
         "422":
           $ref: '#/components/responses/ValidationError'
 
-  /api/v1/books/{id}:
+  /api/v2/books/{id}:
     get:
-      summary: Get book by ID
+      tags: [Books v2]
+      summary: Get book by ID (v2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/BookId'
       responses:
         "200":
           description: Book found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Book'
+                $ref: '#/components/schemas/BookV2'
         "404":
           $ref: '#/components/responses/NotFound'
 
     put:
-      summary: Replace book
+      tags: [Books v2]
+      summary: Replace book (v2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/BookId'
       requestBody:
         required: true
         content:
@@ -210,23 +364,17 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
+                $ref: '#/components/schemas/IdResponse'
         "404":
           $ref: '#/components/responses/NotFound'
         "422":
           $ref: '#/components/responses/ValidationError'
 
     patch:
-      summary: Partially update book
+      tags: [Books v2]
+      summary: Partially update book (v2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/BookId'
       requestBody:
         required: true
         content:
@@ -239,33 +387,106 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
+                $ref: '#/components/schemas/IdResponse'
         "404":
           $ref: '#/components/responses/NotFound'
         "422":
           $ref: '#/components/responses/ValidationError'
 
     delete:
-      summary: Delete book
+      tags: [Books v2]
+      summary: Delete book (v2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/BookId'
       responses:
         "204":
           description: Deleted successfully
         "404":
           $ref: '#/components/responses/NotFound'
 
+  /docs/migration-v1-to-v2:
+    get:
+      tags: [Docs]
+      summary: API migration guide (v1 → v2)
+      description: Returns the human-readable migration guide as Markdown. This is the target of the `Link` deprecation header on v1 responses.
+      responses:
+        "200":
+          description: Migration guide
+          content:
+            text/markdown:
+              schema:
+                type: string
+        "404":
+          $ref: '#/components/responses/NotFound'
+
 components:
+  parameters:
+    BookId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      in: query
+      name: per_page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    Sort:
+      in: query
+      name: sort
+      schema:
+        type: string
+        enum: [id, title, author, description, created_at]
+    OrderBy:
+      in: query
+      name: orderBy
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+    AuthorFilter:
+      in: query
+      name: author
+      schema:
+        type: string
+    TitleFilter:
+      in: query
+      name: title
+      schema:
+        type: string
+
+  headers:
+    Deprecation:
+      description: RFC 8594 — present on every v1 response.
+      schema:
+        type: string
+        example: "true"
+    Sunset:
+      description: RFC 8594 — HTTP-date after which v1 may stop working.
+      schema:
+        type: string
+        example: "Thu, 31 Dec 2026 00:00:00 GMT"
+    DeprecationLink:
+      description: RFC 8288 link to the migration guide (host-relative).
+      schema:
+        type: string
+        example: '</docs/migration-v1-to-v2>; rel="deprecation"'
+
   schemas:
     Book:
       type: object
+      description: v1 representation.
       properties:
         id:
           type: integer
@@ -288,6 +509,26 @@ components:
               type: string
       required: [id, title, author, description]
 
+    BookV2:
+      type: object
+      description: |
+        v2 representation. Breaking changes vs v1: `title` is renamed to `name`,
+        and `author` is a nested object instead of a flat string.
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+          required: [name]
+        description:
+          type: string
+      required: [id, name, author, description]
+
     BookCreate:
       type: object
       required: [title, author, description]
@@ -309,6 +550,12 @@ components:
         description:
           type: string
 
+    IdResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+
     ErrorResponse:
       type: object
       properties:
@@ -320,7 +567,7 @@ components:
       properties:
         error:
           type: string
-        details:
+        errors:
           type: object
 
   responses:
@@ -337,7 +584,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationErrorResponse'
-
 
     Unauthorized:
       description: Authentication failed

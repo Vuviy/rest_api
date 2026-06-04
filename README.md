@@ -15,6 +15,13 @@ A fully featured REST API for a book repository built with **pure PHP** (no fram
 - Sorting: `?sort=title&orderBy=desc`
 - HATEOAS: responses include links to related resources
 
+### API Versioning
+- Three interchangeable strategies: URL path (`/api/v1`, `/api/v2`), `X-API-Version` header, `Accept` content negotiation
+- Supported versions: **v1, v2** — default **v1** (fixed, never auto-jumps to latest)
+- Deprecation signalling via RFC 8594 `Deprecation` / `Sunset` / `Link` headers
+- Per-version output representation (transformers) without touching controllers/services
+- Self-served migration guide at `GET /docs/migration-v1-to-v2`
+
 ### JWT Authentication
 - Access token: **15 minutes**, Refresh token: **7 days**
 - RS256 algorithm with RSA key pair
@@ -195,9 +202,11 @@ Login with credentials from your `.env` file (`MYSQL_ROOT_PASSWORD`).
 
 ## Authentication Flow
 
+Authentication is **version-neutral** (the token is the same across API versions), so it lives outside the version path:
+
 ```
-POST /api/v1/auth          ← get access + refresh tokens
-POST /api/v1/refresh        ← rotate refresh token
+POST /api/auth          ← get access + refresh tokens
+POST /api/refresh       ← rotate refresh token
 ```
 
 Include the access token in requests:
@@ -205,6 +214,82 @@ Include the access token in requests:
 ```
 Authorization: Bearer <access_token>
 ```
+
+---
+
+## API Versioning
+
+The API serves multiple versions. **Supported: `v1`, `v2`. Default: `v1`** (fixed — it will never silently jump to the newest version).
+
+### Choosing a version
+
+Three interchangeable strategies produce the same result:
+
+**1. URL path** (recommended — explicit and cacheable)
+
+```
+GET /api/v1/books
+GET /api/v2/books
+```
+
+The version in the path is authoritative; version headers are ignored here.
+
+**2. `X-API-Version` header** (on the version-neutral path)
+
+```
+GET /api/books
+X-API-Version: 2
+```
+
+**3. `Accept` content negotiation** (on the version-neutral path)
+
+```
+GET /api/books
+Accept: application/vnd.api+json;version=2
+```
+
+### Resolution priority
+
+On the neutral `/api/...` path, when several signals are present:
+
+```
+X-API-Version  →  Accept;version  →  default (v1)
+```
+
+- No version on the neutral path → **default v1**.
+- Unknown version via header/`Accept` (e.g. `99`) → falls back to **default v1**.
+- Unknown version in the URL (e.g. `/api/v99/books`) → **404 Not Found**.
+
+### Deprecation (v1)
+
+v1 is **deprecated** (sunset **2026-12-31**). Every v1 response carries RFC 8594 headers:
+
+```
+Deprecation: true
+Sunset: Thu, 31 Dec 2026 00:00:00 GMT
+Link: </docs/migration-v1-to-v2>; rel="deprecation"
+```
+
+The `Link` is host-relative, so it resolves to the migration guide on whatever host served the response.
+
+### What changed in v2
+
+v2 changes the **book response representation only** (request bodies are unchanged):
+
+| Field (v1) | Field (v2) |
+|---|---|
+| `title` (string) | `name` (string) |
+| `author` (string) | `author` (object: `{ "name": ... }`) |
+
+### Migration guide
+
+A human-readable guide is served by the API itself:
+
+```
+GET /docs/migration-v1-to-v2        → text/markdown
+```
+
+> The API versioning system was designed and implemented with [Claude Code](https://claude.com/claude-code).
 
 ---
 

@@ -9,8 +9,19 @@ final class Response
     public function __construct(
         private array|string|null $data = null,
         private HttpStatus $status = HttpStatus::OK,
-        private array $headers = []
+        private array $headers = [],
+        private bool $raw = false
     ) {
+    }
+
+    /**
+     * Build a response whose body is written verbatim (no JSON encoding and no
+     * forced application/json header). Use it for non-JSON payloads such as
+     * documentation or file exports; pass the desired Content-Type via $headers.
+     */
+    public static function raw(string $body, HttpStatus $status = HttpStatus::OK, array $headers = []): self
+    {
+        return new self($body, $status, $headers, raw: true);
     }
 
     public function send(): void
@@ -24,6 +35,14 @@ final class Response
 
         foreach ($this->headers as $key => $value) {
             header(sprintf('%s: %s', $this->normalizeHeaderName($key), $value));
+        }
+
+        if ($this->raw) {
+            if (is_string($this->data)) {
+                echo $this->data;
+            }
+
+            return;
         }
 
         if ($this->data !== null) {
