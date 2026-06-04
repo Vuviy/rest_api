@@ -92,3 +92,285 @@
   ---
   Хочеш, я зроблю це реальним прикладом окремим міні-циклом (Explain → код → review → mentor): додам трансформери так, щоб /api/v2/books повертав title як
   name і вкладеного author — і ти побачиш живу різницю між v1 і v2? Це був би гарний крок 8.5 і чудовий матеріал для фінальної навчальної нотатки (Learn).
+
+
+
+   Роблю реальний приклад трансформерів. Спершу — вивчу поточний BookController, BookService і форму даних книги, щоб підключитися коректно:
+
+    Read 3 files (ctrl+o to expand)
+
+  ● Бачу форму даних: Book має id, title, author, description. Зверну увагу на нюанс — list() віддає об'єкти Book (серіалізуються з links), а getById() —
+    toArray() (без links). Перевірю, що саме повертає репозиторій для списку:
+
+    Read 1 file (ctrl+o to expand)
+
+  ● Ключова знахідка: getAll() повертає масиви ($bookObj->toArray(), рядок 67), а не об'єкти Book. Тобто поточна v1-відповідь (і для list, і для getById) — це
+    {id, title, author, description} без links. Це навіть спрощує: спільний вхід трансформера — масив книги.
+
+    Крок 8.5 — Versioned Transformers (приклад)
+
+    Фаза 1 — Explain
+
+    Реалізую Патерн A: один сервіс/логіка, але форму відповіді обирає трансформер за версією.
+    - BookTransformerV1 — identity (повертає {id,title,author,description} без змін → точна backward compatibility);
+    - BookTransformerV2 — title→name, author стає вкладеним {name: ...};
+    - BookTransformerFactory — обирає за api_version (який уже лежить у запиті);
+    - контролер: один рядок вибору трансформера, нуль version-if-ів у логіці.
+
+    Гачок — $request->getAttribute('api_version'), що його кладе VersionMiddleware. Це пряме продовження всього, що ми збудували.
+
+    Фаза 2 — Implement
+
+    Спершу 4 файли трансформерів:
+
+  ● Write(src/Versioning/Transformers/BookTransformer.php)
+    ⎿  Wrote 20 lines to src/Versioning/Transformers/BookTransformer.php
+         1 <?php
+         2
+         3 declare(strict_types=1);
+         4
+         5 namespace App\Versioning\Transformers;
+         6
+         7 /**
+         8  * Shapes a single book's array representation for a specific API version.
+         9  * Business logic stays in the service; only the OUTPUT shape differs per version.
+        10  *
+       … +10 lines (ctrl+o to expand)
+
+  ● Write(src/Versioning/Transformers/BookTransformerV1.php)
+    ⎿  Wrote 17 lines to src/Versioning/Transformers/BookTransformerV1.php
+         1 <?php
+         2
+         3 declare(strict_types=1);
+         4
+         5 namespace App\Versioning\Transformers;
+         6
+         7 /**
+         8  * v1 output shape — the original representation, kept unchanged for backward compatibility.
+         9  */
+        10 final class BookTransformerV1 implements BookTransformer
+       … +7 lines (ctrl+o to expand)
+
+  ● Write(src/Versioning/Transformers/BookTransformerV2.php)
+    ⎿  Wrote 23 lines to src/Versioning/Transformers/BookTransformerV2.php
+         1 <?php
+         2
+         3 declare(strict_types=1);
+         4
+         5 namespace App\Versioning\Transformers;
+         6
+         7 /**
+         8  * v2 output shape — demonstrates breaking changes done safely behind versioning:
+         9  *  - `title` is renamed to `name`
+        10  *  - `author` becomes a nested object instead of a flat string
+       … +13 lines (ctrl+o to expand)
+
+  ● Write(src/Versioning/Transformers/BookTransformerFactory.php)
+    ⎿  Wrote 20 lines to src/Versioning/Transformers/BookTransformerFactory.php
+         1 <?php
+         2
+         3 declare(strict_types=1);
+         4
+         5 namespace App\Versioning\Transformers;
+         6
+         7 /**
+         8  * Picks the output transformer for a resolved API version.
+         9  * Adding v3 = one more `match` arm; controllers and services stay untouched.
+        10  */
+       … +10 lines (ctrl+o to expand)
+
+  ● Тепер підключаю трансформер у BookController (list + getById) і реєструю фабрику:
+
+  ● Update(src/Controller/BookController.php)
+    ⎿  Added 1 line
+        13  use App\Response;
+        14  use App\Service\BookService;
+        15  use App\Validators\AttributeValidator;
+        16 +use App\Versioning\Transformers\BookTransformerFactory;
+        17
+        18  final class BookController
+        19  {
+
+  ● Update(src/Controller/BookController.php)
+    ⎿  Added 8 lines
+        20      public function __construct(
+        21          private BookService $service,
+        22          private AttributeValidator $attributeValidator,
+        23 +        private BookTransformerFactory $transformers,
+        24      ) {
+        25      }
+        26
+        27 +    private function resolveVersion(Request $request): int
+        28 +    {
+        29 +        $version = $request->getAttribute('api_version');
+        30 +
+        31 +        return is_int($version) ? $version : 1;
+        32 +    }
+        33 +
+        34      public function list(Request $request): Response
+        35      {
+        36          $data = $request->get();
+
+  ● Update(src/Controller/BookController.php)
+    ⎿  Added 11 lines, removed 1 line
+        49
+        50          $result = $this->service->list($dto);
+        51
+        52 +        $transformer = $this->transformers->for($this->resolveVersion($request));
+        53 +
+        54 +        /** @var array<int, array<string, mixed>> $rows */
+        55 +        $rows = $result['data'];
+        56 +
+        57 +        $data = array_map(
+        58 +            static fn(array $book): array => $transformer->transform($book),
+        59 +            $rows
+        60 +        );
+        61 +
+        62          return new Response(
+        53 -            $result['data'],
+        63 +            $data,
+        64              HttpStatus::OK,
+        65              $result['headers']
+        66          );
+
+  ● Update(src/Controller/BookController.php)
+    ⎿  Added 3 lines, removed 1 line
+        70      {
+        71          $book = $this->service->getById($id);
+        72
+        73 -        return new Response($book->toArray(), HttpStatus::OK);
+        73 +        $transformer = $this->transformers->for($this->resolveVersion($request));
+        74 +
+        75 +        return new Response($transformer->transform($book->toArray()), HttpStatus::OK);
+        76      }
+        77
+        78      public function store(Request $request): Response
+
+  ● Update(bootstrap.php)
+    ⎿  Added 1 line
+        28  use App\Versioning\VersionResolver;
+        29  use App\Versioning\VersionMiddleware;
+        30  use App\Versioning\DeprecationMiddleware;
+        31 +use App\Versioning\Transformers\BookTransformerFactory;
+        32
+        33  $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
+        34  $dotenv->load();
+
+  ● Update(bootstrap.php)
+    ⎿  Added 4 lines, removed 1 line
+        65
+        66  $containerRoot->bind(AttributeValidator::class, fn($container) => new AttributeValidator());
+        67
+        68 +$containerRoot->bind(BookTransformerFactory::class, fn($container) => new BookTransformerFactory());
+        69 +
+        70  $containerRoot->bind(BookController::class, fn($container) => new BookController(
+        71      $container->get(BookService::class),
+        70 -    $container->get(AttributeValidator::class)
+        72 +    $container->get(AttributeValidator::class),
+        73 +    $container->get(BookTransformerFactory::class),
+        74  ));
+        75
+        76  $containerRoot->bind(ExceptionRegistry::class, fn($container) => new ExceptionRegistry());
+
+  ● Фаза 2 — Review
+  ● Bash(cd /home/mavzydun/doker_for_rest_api/app
+        echo "=== php -l ==="…)
+    ⎿  === php -l ===
+       No syntax errors detected in src/Versioning/Transformers/BookTransformer.php
+       No syntax errors detected in src/Versioning/Transformers/BookTransformerFactory.php
+       … +33 lines (ctrl+o to expand)
+
+  ● Усе працює — і ось жива різниця:
+
+    ┌────────┬────────────────────────────────────────────────────────────────────────┐
+    │ Версія │                               Відповідь                                │
+    ├────────┼────────────────────────────────────────────────────────────────────────┤
+    │ v1     │ {id, title, author, description} — без змін (backward compatible)      │
+    ├────────┼────────────────────────────────────────────────────────────────────────┤
+    │ v2     │ {id, name, author: {name}, description} — title→name, вкладений author │
+    ├────────┼────────────────────────────────────────────────────────────────────────┤
+    │ v99    │ → fallback на V1                                                       │
+    └────────┴────────────────────────────────────────────────────────────────────────┘
+
+    ┌────────────────────────────────────────────┬──────────────────────────────────┐
+    │                 Перевірка                  │            Результат             │
+    ├────────────────────────────────────────────┼──────────────────────────────────┤
+    │ Синтаксис усіх файлів                      │ ✅                               │
+    ├────────────────────────────────────────────┼──────────────────────────────────┤
+    │ phpcs                       ч              │ ✅ чисто                         │
+    ├────────────────────────────────────────────┼──────────────────────────────────┤
+    │ psalm нові трансформери     л    b         │ ✅ лише baseline-false-positives │
+    ├────────────────────────────────────────────┼──────────────────────────────────┤
+    │ Контейнер збирає BookController з фабрикою │ ✅                               │
+    ├────────────────────────────────────────────┼──────────────────────────────────┤
+    │ v1 ідентичність (backward compat)          │ ✅                               │
+    └────────────────────────────────────────────┴──────────────────────────────────┘
+
+    Вердикт Review: Approve.
+
+    Фаза 3 — Mentor
+
+    Урок 1 — Strategy + Factory = Open/Closed Principle. Ти щойно застосував два класичні патерни: BookTransformer (Strategy — взаємозамінні алгоритми
+    форматування) і BookTransformerFactory (вибір стратегії). Результат — Open/Closed: щоб додати v3, ти відкриваєш код для розширення (новий клас + рядок у
+    match), але не чіпаєш існуючі v1/v2. Це одна з літер SOLID наживо.
+
+    Урок 2 — найголовніший: добра архітектура «окупається» при змінах. Згадай, скільки коду довелось чіпати, щоб v2 по-справжньому відрізнялась: нуль змін у
+    middleware, роутах, резолвері, конфізі. Лише нові трансформери + 2 рядки в контролері. Чому? Бо гачок (api_version на запиті) ми заклали раніше. Це і є сенс  продуманого дизайну: майбутні зміни стають дешевими. Поганий дизайн карає тебе при кожній зміні; добрий — винагороджує.
+
+    Урок 3 — розділення логіки і представлення. Сервіс відповідає на питання «які книги» (бізнес-логіка, одна на всі версії). Трансформер — «як їх показати»
+    (представлення, різне per version). Це Single Responsibility: зміна форми v2 не може зачепити логіку вибірки. Той самий принцип, що MVC, serializers у
+    Rails, Resources у Laravel.
+
+    Урок 4 — match default = безпечний fallback. default => new BookTransformerV1() означає: будь-яка неочікувана версія дає робочу v1, а не падіння. Захист за
+    замовчуванням.
+
+    Технічний борг (чесно):
+    - v2 змінює тільки відповідь. Якби v2 мала іншу валідацію запиту — потрібні були б версійні DTO/валідатори (той самий патерн, інший шар).
+    - Трансформер для list бере $result['data'] як array<array> через @var-анотацію — бо сервіс типізований слабко (array). Ідеально було б типізувати сам
+    сервіс, але це поза обсягом.
+
+    Питання для самоперевірки:
+    - Чому додавання v3 не потребує змін у VersionResolver чи роутах?
+    - Якби BookTransformerV2 був замість match написаний як if ($version==2) прямо в контролері — який принцип SOLID ти б порушив?
+
+    Оновлюю tasks (крок 8 ти підтвердив вручну + додаю крок 9):
+
+  ● Update(.claude/tasks/api-versioning.tasks.md)
+    ⎿  Added 2 lines, removed 1 line
+        13  | 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middle
+            ware. Also extended `VersionResolver` with URL priority | `routes/api.php`, `src/Versioning/VersionResolver.php` | 0, 3, 4 | ✅ |
+        14  | 6 | Migration guide v1 → v2 (also documents auth move to neutral `/api/auth`) | `docs/migration-v1-to-v2.md` | 5 | ✅ |
+        15  | 7 | Quality gates green (phpcs clean; psalm only baseline container false-positives, proven equal to existing middleware) | — | 0-6 | ✅ |        ─
+        16 -| 8 | Manual verification of all 3 strategies + v1 backward compatibility | — | 5 | ☐ |
+        16 +| 8 | Manual verification of all 3 strategies + v1 backward compatibility (done by engineer) | — | 5 | ✅ |
+        17 +| 9 | v2 divergence example via versioned transformers (Strategy + Factory); v1 identity = backward compat | `src/Versioning/Transformers/*`,
+           + `src/Controller/BookController.php`, `bootstrap.php` | 5 | ✅ |
+        18
+        19  ## Execution order (why)
+        20  Bug fix (0) first — without it PUT routes silently skip versioning. Then config (1) as the source of
+
+  ● Підсумок кроку 8.5
+
+    Explain ✅ → Implement ✅ → Review ✅ (Approve) → Mentor ✅ → tasks оновлено
+
+    /api/v2/books тепер реально відрізняється від v1 (title→name, вкладений author), а v1 лишається незмінною. І найважливіше — це коштувало майже нічого, бо
+    гачок api_version був закладений раніше.
+
+    Карта задачі — ВСЕ ЗАКРИТО:
+    - [✅] 0–7 — фікс, config, resolver, 2 middleware, routing, migration guide, quality gates
+    - [✅] 08 ——ручна перевіркаr(ти підтвердив)
+    - [✅] 89— руеальна еізниця(v1/v2 черрз трансформери
+
+    Уся Definition of Done зі специфікації виконана: усі 3 стратегії, backward compatibility, deprecation, коректний routing, migration guide — плюс жива
+    розбіжність версій.
+
+    Лишилась одна фаза воркфлоу — Learn
+
+    За нашим процесом (workflows/learning.workflow.md) після завершення фічі learning-mentor створює підсумкову навчальну нотатку learning/api-versioning.md:
+    execution flow усієї системи, ключові рішення, патерни (functional core/shell, Strategy, Factory, middleware-цибуля), технічний борг і питання для
+    самоперевірки. Це «зовнішня пам'ять», до якої ти повернешся перед наступною подібною задачею.
+
+    Згенерувати фінальну навчальну нотатку (фаза Learn)?
+
+  ✻ Worked for 4m 2s
+

@@ -13,7 +13,8 @@
 | 5 | Routing — register v2 versioned routes + neutral `/api/...` routes; map neutral+version → same handlers (no duplication); attach middleware. Also extended `VersionResolver` with URL priority | `routes/api.php`, `src/Versioning/VersionResolver.php` | 0, 3, 4 | ✅ |
 | 6 | Migration guide v1 → v2 (also documents auth move to neutral `/api/auth`) | `docs/migration-v1-to-v2.md` | 5 | ✅ |
 | 7 | Quality gates green (phpcs clean; psalm only baseline container false-positives, proven equal to existing middleware) | — | 0-6 | ✅ |
-| 8 | Manual verification of all 3 strategies + v1 backward compatibility | — | 5 | ☐ |
+| 8 | Manual verification of all 3 strategies + v1 backward compatibility (done by engineer) | — | 5 | ✅ |
+| 9 | v2 divergence example via versioned transformers (Strategy + Factory); v1 identity = backward compat | `src/Versioning/Transformers/*`, `src/Controller/BookController.php`, `bootstrap.php` | 5 | ✅ |
 
 ## Execution order (why)
 Bug fix (0) first — without it PUT routes silently skip versioning. Then config (1) as the source of

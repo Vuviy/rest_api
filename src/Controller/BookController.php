@@ -13,13 +13,22 @@ use App\Request;
 use App\Response;
 use App\Service\BookService;
 use App\Validators\AttributeValidator;
+use App\Versioning\Transformers\BookTransformerFactory;
 
 final class BookController
 {
     public function __construct(
         private BookService $service,
         private AttributeValidator $attributeValidator,
+        private BookTransformerFactory $transformers,
     ) {
+    }
+
+    private function resolveVersion(Request $request): int
+    {
+        $version = $request->getAttribute('api_version');
+
+        return is_int($version) ? $version : 1;
     }
 
     public function list(Request $request): Response
@@ -40,8 +49,18 @@ final class BookController
 
         $result = $this->service->list($dto);
 
+        $transformer = $this->transformers->for($this->resolveVersion($request));
+
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $result['data'];
+
+        $data = array_map(
+            static fn(array $book): array => $transformer->transform($book),
+            $rows
+        );
+
         return new Response(
-            $result['data'],
+            $data,
             HttpStatus::OK,
             $result['headers']
         );
@@ -51,7 +70,9 @@ final class BookController
     {
         $book = $this->service->getById($id);
 
-        return new Response($book->toArray(), HttpStatus::OK);
+        $transformer = $this->transformers->for($this->resolveVersion($request));
+
+        return new Response($transformer->transform($book->toArray()), HttpStatus::OK);
     }
 
     public function store(Request $request): Response

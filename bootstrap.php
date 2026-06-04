@@ -28,6 +28,7 @@ use App\Validators\AttributeValidator;
 use App\Versioning\VersionResolver;
 use App\Versioning\VersionMiddleware;
 use App\Versioning\DeprecationMiddleware;
+use App\Versioning\Transformers\BookTransformerFactory;
 
 $dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
 $dotenv->load();
@@ -64,9 +65,12 @@ $containerRoot->bind(BookService::class, fn($container) => new BookService($cont
 
 $containerRoot->bind(AttributeValidator::class, fn($container) => new AttributeValidator());
 
+$containerRoot->bind(BookTransformerFactory::class, fn($container) => new BookTransformerFactory());
+
 $containerRoot->bind(BookController::class, fn($container) => new BookController(
     $container->get(BookService::class),
-    $container->get(AttributeValidator::class)
+    $container->get(AttributeValidator::class),
+    $container->get(BookTransformerFactory::class),
 ));
 
 $containerRoot->bind(ExceptionRegistry::class, fn($container) => new ExceptionRegistry());
